@@ -5,14 +5,18 @@ import reactRefresh from 'eslint-plugin-react-refresh'
 import tseslint from 'typescript-eslint'
 
 export default tseslint.config(
-  { ignores: ['dist', 'node_modules', 'coverage'] },
+  { ignores: ['**/dist/**', '**/node_modules/**', '**/coverage/**'] },
+
+  // Base recommended rules for all TypeScript across both workspaces.
   {
     files: ['**/*.{ts,tsx}'],
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
-    languageOptions: {
-      ecmaVersion: 2020,
-      globals: globals.browser,
-    },
+  },
+
+  // Frontend application code runs in the browser and uses React.
+  {
+    files: ['frontend/src/**/*.{ts,tsx}'],
+    languageOptions: { ecmaVersion: 2020, globals: globals.browser },
     plugins: {
       'react-hooks': reactHooks,
       'react-refresh': reactRefresh,
@@ -22,9 +26,10 @@ export default tseslint.config(
       'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
     },
   },
+
+  // Backend code and all config/build files run under Node.
   {
-    // Config and Node-side files run under Node, not the browser.
-    files: ['*.{js,ts}', 'vite.config.ts'],
+    files: ['backend/**/*.ts', '**/*.config.{ts,js}', 'eslint.config.js'],
     languageOptions: { globals: globals.node },
   },
 )

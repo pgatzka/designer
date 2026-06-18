@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Canvas } from './components/Canvas'
 import { Editor } from './components/Editor'
 import { ErrorBar } from './components/ErrorBar'
+import { useAuth } from './auth/AuthContext'
 import { parse } from './schema/parse'
 import { SEED_YAML } from './schema/seed'
 import type { Database, ParseError } from './schema/types'
@@ -42,6 +43,7 @@ export default function App() {
   }, [text])
 
   const tableCount = useMemo(() => db.schemas.reduce((sum, s) => sum + s.tables.length, 0), [db])
+  const { user, logout } = useAuth()
 
   return (
     <div className="app">
@@ -51,6 +53,12 @@ export default function App() {
           {db.schemas.length} schema{db.schemas.length === 1 ? '' : 's'} · {tableCount} table
           {tableCount === 1 ? '' : 's'}
         </span>
+        <div className="app__user">
+          {user && <span className="app__email">{user.email}</span>}
+          <button className="app__logout" onClick={() => void logout()}>
+            Log out
+          </button>
+        </div>
       </header>
       <div className="app__body">
         <section className="app__editor">

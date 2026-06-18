@@ -5,18 +5,46 @@ embedded VSCode (Monaco) editor** and rendered as an **automatically arranged**
 ER diagram. The code is the single source of truth — the diagram is display-only
 and re-lays out (via [ELK](https://github.com/kieler/elkjs)) on every change.
 
-## Run it
+Access is gated behind **email + password authentication** (self-service
+registration). The app is an **npm-workspaces monorepo**:
+
+- **`frontend/`** — Vite + React UI (designer + auth screens). UI only, no business logic.
+- **`backend/`** — Fastify + PostgreSQL API owning auth and persistence. In production
+  it also serves the built frontend, so the whole app is one Node process.
+
+## Run it (development)
 
 ```bash
-npm install
-npm run dev            # start the dev server
-npm test               # run parser/validation unit tests
-npm run test:coverage  # tests + enforced coverage gate
-npm run lint           # ESLint
-npm run typecheck      # tsc --noEmit
-npm run format:check   # Prettier
-npm run build          # typecheck + production build
+npm install                 # installs both workspaces
+
+# 1. Start Postgres (compose) and export config for the backend:
+docker compose up -d db
+export DATABASE_URL="postgres://designer:designer@localhost:5432/designer"
+export JWT_SECRET="a-long-random-dev-secret-value"
+
+# 2. Run the two dev servers (separate terminals):
+npm run dev:backend         # Fastify API on :3000 (runs migrations on boot)
+npm run dev:frontend        # Vite on :5173, proxies /api -> :3000
+
+# Quality gates (run across both workspaces):
+npm test                    # unit tests (frontend parser + backend auth)
+npm run test:coverage       # tests + enforced coverage gates
+npm run lint                # ESLint
+npm run typecheck           # tsc --noEmit
+npm run format:check        # Prettier
+npm run build               # build frontend + compile backend
 ```
+
+## Run it (full stack, Docker)
+
+```bash
+cp .env.example .env        # set JWT_SECRET (>=16 chars) and POSTGRES_PASSWORD
+docker compose up --build   # app on http://localhost:3000 + Postgres
+```
+
+The backend serves both the API (`/api/...`) and the static frontend. Register a new
+account on first visit. Sessions are an httpOnly JWT cookie; passwords are hashed with
+argon2. No email verification (MVP).
 
 ## CI/CD
 
@@ -36,8 +64,8 @@ verify-formatting → verify-compilation ┬→ verify-typecheck ─────
 - **verify-typecheck** — `tsc --noEmit`.
 - **verify-lint** — ESLint.
 - **verify-tests** — vitest.
-- **verify-coverage** — vitest with the **enforced coverage gate** (thresholds in
-  `vite.config.ts`); uploads `coverage/` as an artifact.
+- **verify-coverage** — vitest with **enforced coverage gates** for both workspaces
+  (frontend `vite.config.ts`, backend `vitest.config.ts`); uploads coverage as an artifact.
 - **verify-sonar** — SonarQube/SonarCloud scan ingesting `coverage/lcov.info`. This is
   a **required gate**: it **fails** (and blocks `publish-image`) unless a `SONAR_TOKEN`
   secret is configured and `sonar.projectKey`/`sonar.organization` are set in
@@ -51,13 +79,10 @@ verify-formatting → verify-compilation ┬→ verify-typecheck ─────
 
 ### Docker
 
-Multi-stage build (`Dockerfile`): Node builds the SPA, nginx serves the static files
-(`docker/nginx.conf`, with SPA history fallback + gzip).
-
-```bash
-docker build -t designer .
-docker run --rm -p 8080:80 designer   # http://localhost:8080
-```
+Multi-stage build (`Dockerfile`): builds the frontend (Vite) and the backend (tsc),
+then a `node:24-alpine` runtime runs the backend, which serves the API **and** the
+static frontend. The image needs Postgres + `JWT_SECRET` at runtime — use
+`docker compose up` (see "Run it, full stack") rather than running the image alone.
 
 ### One-time setup
 
@@ -122,7 +147,18 @@ in a bar over the canvas while the last valid diagram stays on screen.
 
 ## Architecture
 
-- `src/schema/parse.ts` — YAML → typed `Database` with collected validation errors.
-- `src/graph/toReactFlow.ts` — `Database` → React Flow nodes/edges + column badges.
-- `src/layout/elkLayout.ts` — ELK layered auto-arrangement.
-- `src/components/` — Monaco `Editor`, React Flow `Canvas`, `TableNode`, `ErrorBar`.
+Frontend (`frontend/src/`):
+
+- `schema/parse.ts` — YAML → typed `Database` with collected validation errors.
+- `graph/toReactFlow.ts` — `Database` → React Flow nodes/edges + column badges.
+- `layout/elkLayout.ts` — ELK layered auto-arrangement.
+- `components/` — Monaco `Editor`, React Flow `Canvas`, `TableNode`, `ErrorBar`, `AuthScreen`.
+- `auth/` — `AuthContext` (session state) + `api.ts` (calls `/api/auth/*`).
+
+Backend (`backend/src/`):
+
+- `auth/` — `validation` (zod), `password` (argon2), `service` (register/login over a
+  `UserRepository`), `routes` (`/api/auth/register|login|logout|me`, JWT cookie).
+- `db/` — `pool`, `migrate` (idempotent `users` table), `userRepository` (pg).
+- `app.ts` — Fastify factory (DI'd repository, so logic is tested without a DB);
+  `static.ts` serves the frontend in production; `index.ts` boots it all.

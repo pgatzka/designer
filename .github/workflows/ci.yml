@@ -75,7 +75,9 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: coverage
-          path: coverage
+          path: |
+            frontend/coverage
+            backend/coverage
           if-no-files-found: ignore
 
   verify-sonar:
@@ -90,7 +92,7 @@ jobs:
         uses: actions/download-artifact@v8
         with:
           name: coverage
-          path: coverage
+          path: .
         continue-on-error: true
       - name: SonarQube scan
         uses: SonarSource/sonarqube-scan-action@v8

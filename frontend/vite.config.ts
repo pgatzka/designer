@@ -8,6 +8,12 @@ export default defineConfig({
   worker: {
     format: 'es',
   },
+  server: {
+    proxy: {
+      // Forward API calls to the backend in dev so the browser stays same-origin.
+      '/api': 'http://localhost:3000',
+    },
+  },
   test: {
     environment: 'node',
     include: ['src/**/*.test.ts'],
