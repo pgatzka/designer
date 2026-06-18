@@ -120,6 +120,19 @@ jobs:
           except Exception as e:
               print('could not parse quality gate json:', e)
           PY
+          echo '--- new-code bugs / vulnerabilities ---'
+          curl -s -u "$SONAR_TOKEN:" \
+            "$SONAR_HOST_URL/api/issues/search?componentKeys=pgatzka_designer&branch=${{ github.ref_name }}&inNewCodePeriod=true&types=BUG,VULNERABILITY&ps=50" \
+            -o issues.json || true
+          python3 - <<'PY'
+          import json
+          try:
+              d = json.load(open('issues.json'))
+              for i in d.get('issues', []):
+                  print(f"{i.get('severity'):8} {i.get('type'):14} {i.get('rule')} {i.get('component')}:{i.get('line')} :: {i.get('message')}")
+          except Exception as e:
+              print('could not parse issues json:', e)
+          PY
 
   build-image:
     name: Build image
