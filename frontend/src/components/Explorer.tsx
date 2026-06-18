@@ -20,21 +20,20 @@ export function Explorer({ designs, activeId, busy, onSelect, onNew, onDelete }:
       </div>
       <ul className="explorer__list">
         {designs.map((d) => (
-          <li
-            key={d.id}
-            className={`explorer__item${d.id === activeId ? ' is-active' : ''}`}
-            onClick={() => onSelect(d.id)}
-          >
-            <span className="explorer__name" title={d.name}>
-              {d.name}
-            </span>
+          <li key={d.id} className={`explorer__item${d.id === activeId ? ' is-active' : ''}`}>
             <button
+              type="button"
+              className="explorer__name"
+              title={d.name}
+              onClick={() => onSelect(d.id)}
+            >
+              {d.name}
+            </button>
+            <button
+              type="button"
               className="explorer__delete"
               title="Delete design"
-              onClick={(e) => {
-                e.stopPropagation()
-                onDelete(d.id)
-              }}
+              onClick={() => onDelete(d.id)}
             >
               ×
             </button>
