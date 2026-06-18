@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { FastifyInstance } from 'fastify'
 import { buildApp } from '../src/app'
-import { FakeUserRepository } from './fakeRepo'
+import { FakeDesignRepository, FakeUserRepository } from './fakeRepo'
 
 const CREDS = { email: 'user@example.com', password: 'longenough' }
 
@@ -12,6 +12,7 @@ describe('auth routes', () => {
     app = buildApp({
       jwtSecret: 'test-secret-test-secret',
       userRepository: new FakeUserRepository(),
+      designRepository: new FakeDesignRepository(),
     })
   })
 

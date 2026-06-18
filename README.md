@@ -147,18 +147,30 @@ in a bar over the canvas while the last valid diagram stays on screen.
 
 ## Architecture
 
+### Designs & persistence
+
+Each user can keep **multiple database designs**, listed in the left **explorer**
+(create / select / rename / delete). The active design **auto-saves** (debounced) when
+the YAML parses cleanly. Designs are **not stored as a YAML blob** — the YAML is parsed
+into objects and persisted **normalized** (`designs → design_schemas → design_tables →
+design_columns / design_constraints / design_foreign_keys`). On load the structure is
+read back and serialized to canonical YAML for the editor.
+
 Frontend (`frontend/src/`):
 
-- `schema/parse.ts` — YAML → typed `Database` with collected validation errors.
+- `schema/parse.ts` — YAML → typed `Database`; `schema/serialize.ts` — `Database` → YAML.
 - `graph/toReactFlow.ts` — `Database` → React Flow nodes/edges + column badges.
 - `layout/elkLayout.ts` — ELK layered auto-arrangement.
-- `components/` — Monaco `Editor`, React Flow `Canvas`, `TableNode`, `ErrorBar`, `AuthScreen`.
-- `auth/` — `AuthContext` (session state) + `api.ts` (calls `/api/auth/*`).
+- `components/` — Monaco `Editor`, React Flow `Canvas`, `TableNode`, `ErrorBar`,
+  `AuthScreen`, `Explorer`.
+- `auth/` — session state + `/api/auth/*` client; `designs/` — `/api/designs` client.
 
 Backend (`backend/src/`):
 
 - `auth/` — `validation` (zod), `password` (argon2), `service` (register/login over a
   `UserRepository`), `routes` (`/api/auth/register|login|logout|me`, JWT cookie).
-- `db/` — `pool`, `migrate` (idempotent `users` table), `userRepository` (pg).
-- `app.ts` — Fastify factory (DI'd repository, so logic is tested without a DB);
+- `designs/` — `schema` (zod), `routes` (`/api/designs` CRUD over a `DesignRepository`).
+- `db/` — `pool`, `migrate` (idempotent tables), `userRepository`, `designRepository`
+  (transactional, normalized read/write).
+- `app.ts` — Fastify factory (DI'd repositories, so logic is tested without a DB);
   `static.ts` serves the frontend in production; `index.ts` boots it all.

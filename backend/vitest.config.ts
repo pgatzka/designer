@@ -8,7 +8,7 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'lcov'],
       reportsDirectory: 'coverage',
-      include: ['src/auth/**'],
+      include: ['src/auth/**', 'src/designs/**'],
       exclude: ['**/*.test.ts', '**/types.ts'],
       thresholds: { lines: 90, statements: 90, functions: 90, branches: 85 },
     },

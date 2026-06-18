@@ -2,6 +2,7 @@ import { buildApp } from './app'
 import { createPool } from './db/pool'
 import { migrate } from './db/migrate'
 import { PgUserRepository } from './db/userRepository'
+import { PgDesignRepository } from './db/designRepository'
 import { loadEnv } from './env'
 import { registerStatic } from './static'
 
@@ -13,6 +14,7 @@ async function main(): Promise<void> {
   const app = buildApp({
     jwtSecret: env.JWT_SECRET,
     userRepository: new PgUserRepository(pool),
+    designRepository: new PgDesignRepository(pool),
     logger: true,
   })
   registerStatic(app)

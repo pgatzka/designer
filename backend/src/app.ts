@@ -5,10 +5,13 @@ import { registerAuthRoutes } from './auth/routes'
 import { AuthService } from './auth/service'
 import { SESSION_COOKIE } from './auth/routes'
 import type { UserRepository } from './auth/types'
+import { registerDesignRoutes } from './designs/routes'
+import type { DesignRepository } from './designs/types'
 
 export interface AppOptions {
   jwtSecret: string
   userRepository: UserRepository
+  designRepository: DesignRepository
   logger?: boolean
 }
 
@@ -25,6 +28,7 @@ export function buildApp(opts: AppOptions): FastifyInstance {
 
   const authService = new AuthService(opts.userRepository)
   registerAuthRoutes(app, authService)
+  registerDesignRoutes(app, opts.designRepository)
 
   return app
 }
