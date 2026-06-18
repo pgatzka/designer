@@ -1,0 +1,91 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Visual Database Designer schema",
+  "type": "object",
+  "required": ["database"],
+  "additionalProperties": false,
+  "properties": {
+    "database": {
+      "type": "object",
+      "required": ["schemas"],
+      "additionalProperties": false,
+      "properties": {
+        "schemas": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/definitions/schema" }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "tables": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/definitions/table" }
+        }
+      }
+    },
+    "table": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "columns": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/definitions/column" }
+        },
+        "constraints": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/definitions/constraint" }
+        },
+        "indices": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/definitions/constraint" }
+        },
+        "foreign-keys": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/definitions/foreignKey" }
+        }
+      }
+    },
+    "column": {
+      "type": "object",
+      "required": ["type"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "type": "string" },
+        "length": { "type": "integer", "minimum": 1 },
+        "nullable": { "type": "boolean" }
+      }
+    },
+    "constraint": {
+      "type": "object",
+      "required": ["type", "columns"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "enum": ["primary-key", "unique", "index"] },
+        "columns": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "foreignKey": {
+      "type": "object",
+      "required": ["source-column", "table", "target-columns"],
+      "additionalProperties": false,
+      "properties": {
+        "source-column": { "$ref": "#/definitions/stringOrList" },
+        "source-columns": { "$ref": "#/definitions/stringOrList" },
+        "table": { "type": "string" },
+        "target-column": { "$ref": "#/definitions/stringOrList" },
+        "target-columns": { "$ref": "#/definitions/stringOrList" }
+      }
+    },
+    "stringOrList": {
+      "oneOf": [
+        { "type": "string" },
+        { "type": "array", "items": { "type": "string" } }
+      ]
+    }
+  }
+}
