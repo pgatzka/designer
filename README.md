@@ -38,8 +38,10 @@ verify-formatting → verify-compilation ┬→ verify-typecheck ─────
 - **verify-tests** — vitest.
 - **verify-coverage** — vitest with the **enforced coverage gate** (thresholds in
   `vite.config.ts`); uploads `coverage/` as an artifact.
-- **verify-sonar** — SonarQube/SonarCloud scan ingesting `coverage/lcov.info`; runs
-  only when a `SONAR_TOKEN` secret is configured (skips cleanly otherwise).
+- **verify-sonar** — SonarQube/SonarCloud scan ingesting `coverage/lcov.info`. This is
+  a **required gate**: it **fails** (and blocks `publish-image`) unless a `SONAR_TOKEN`
+  secret is configured and `sonar.projectKey`/`sonar.organization` are set in
+  `sonar-project.properties`.
 - **build-image** — builds the Docker image to a tarball artifact (no registry push),
   so the Dockerfile is verified on every push/PR.
 - **publish-image** — only on `main` and `v*` tags: loads the built image and

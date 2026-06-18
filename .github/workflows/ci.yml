@@ -93,7 +93,6 @@ jobs:
           path: coverage
         continue-on-error: true
       - name: SonarQube scan
-        if: ${{ env.SONAR_TOKEN != '' }}
         uses: SonarSource/sonarqube-scan-action@v4
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
