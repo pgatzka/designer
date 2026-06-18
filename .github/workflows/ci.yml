@@ -100,6 +100,27 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL || 'https://sonarcloud.io' }}
 
+      - name: Quality gate conditions (on failure)
+        if: failure()
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL || 'https://sonarcloud.io' }}
+        run: |
+          curl -s -u "$SONAR_TOKEN:" \
+            "$SONAR_HOST_URL/api/qualitygates/project_status?projectKey=pgatzka_designer&branch=${{ github.ref_name }}" \
+            -o qg.json || true
+          echo '--- raw ---'; cat qg.json; echo
+          echo '--- failing conditions ---'
+          python3 - <<'PY'
+          import json
+          try:
+              d = json.load(open('qg.json'))
+              for c in d['projectStatus']['conditions']:
+                  print(f"{c['status']:8} {c['metricKey']:35} actual={c.get('actualValue')} {c.get('comparator')} threshold={c.get('errorThreshold')}")
+          except Exception as e:
+              print('could not parse quality gate json:', e)
+          PY
+
   build-image:
     name: Build image
     needs: verify-tests
