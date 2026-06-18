@@ -167,3 +167,63 @@ jobs:
             docker tag "$LOCAL_IMAGE" "$tag"
             docker push "$tag"
           done
+
+  verify-compose:
+    name: Verify compose
+    needs: publish-image
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      packages: read
+    env:
+      # Compose interpolation values for docker-compose.example.yml.
+      JWT_SECRET: ci-compose-secret-ci-compose-secret
+      POSTGRES_PASSWORD: ci-postgres
+      IMAGE_TAG: latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Start the published stack
+        run: |
+          docker compose -f docker-compose.example.yml pull
+          docker compose -f docker-compose.example.yml up -d
+
+      - name: Smoke test
+        run: |
+          # Wait for the app to come up (unauthenticated /api/auth/me -> 401).
+          code=000
+          for i in $(seq 1 60); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/api/auth/me || true)
+            echo "attempt $i: GET /api/auth/me -> $code"
+            [ "$code" = "401" ] && break
+            sleep 2
+          done
+          [ "$code" = "401" ] || { echo "::error::app did not become ready"; exit 1; }
+
+          # The SPA is served.
+          home=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/)
+          echo "GET / -> $home"
+          [ "$home" = "200" ] || { echo "::error::SPA not served"; exit 1; }
+
+          # Registration works end-to-end (DB reachable + migrations applied + auth).
+          reg=$(curl -s -o /dev/null -w '%{http_code}' -X POST http://localhost:3000/api/auth/register \
+            -H 'content-type: application/json' \
+            -d '{"email":"ci@example.com","password":"password123"}')
+          echo "POST /api/auth/register -> $reg"
+          [ "$reg" = "201" ] || { echo "::error::registration failed"; exit 1; }
+
+      - name: Dump logs on failure
+        if: failure()
+        run: docker compose -f docker-compose.example.yml logs
+
+      - name: Tear down
+        if: always()
+        run: docker compose -f docker-compose.example.yml down -v
