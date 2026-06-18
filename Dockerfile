@@ -1,5 +1,5 @@
 # --- Build stage: compile the Vite SPA ---
-FROM node:22-alpine AS build
+FROM node:24-alpine AS build
 WORKDIR /app
 
 # Install dependencies against the lockfile for reproducible builds.
