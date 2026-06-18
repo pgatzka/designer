@@ -183,4 +183,170 @@ describe('parse', () => {
     expect(db.schemas).toEqual([])
     expect(errors).toEqual([])
   })
+
+  it('errors when "schemas" is not a mapping', () => {
+    const { errors } = parse('database:\n  schemas: nope\n')
+    expect(errors.some((e) => e.path === 'database.schemas')).toBe(true)
+  })
+
+  it('errors on non-mapping schema, tables, columns and column nodes', () => {
+    const schema = parse('database:\n  schemas:\n    s: nope\n')
+    expect(schema.errors.some((e) => e.message === 'expected a schema mapping')).toBe(true)
+
+    const tables = parse('database:\n  schemas:\n    s:\n      tables: nope\n')
+    expect(tables.errors.some((e) => e.message === 'expected a "tables" mapping')).toBe(true)
+
+    const cols = parse(`database:
+  schemas:
+    s:
+      tables:
+        t:
+          columns: nope
+`)
+    expect(cols.errors.some((e) => e.message === 'expected a "columns" mapping')).toBe(true)
+
+    const col = parse(`database:
+  schemas:
+    s:
+      tables:
+        t:
+          columns:
+            a: nope
+`)
+    expect(col.errors.some((e) => e.message === 'expected a column mapping')).toBe(true)
+  })
+
+  it('errors when length or nullable have the wrong type', () => {
+    const { errors } = parse(`database:
+  schemas:
+    s:
+      tables:
+        t:
+          columns:
+            a:
+              type: varchar
+              length: long
+              nullable: maybe
+`)
+    expect(errors.some((e) => e.path.endsWith('.length'))).toBe(true)
+    expect(errors.some((e) => e.path.endsWith('.nullable'))).toBe(true)
+  })
+
+  it('errors on non-mapping constraints and constraint nodes', () => {
+    const block = parse(`database:
+  schemas:
+    s:
+      tables:
+        t:
+          columns:
+            id:
+              type: integer
+          constraints: nope
+`)
+    expect(block.errors.some((e) => e.message === 'expected a "constraints" mapping')).toBe(true)
+
+    const entry = parse(`database:
+  schemas:
+    s:
+      tables:
+        t:
+          columns:
+            id:
+              type: integer
+          constraints:
+            c: nope
+`)
+    expect(entry.errors.some((e) => e.message === 'expected a constraint mapping')).toBe(true)
+  })
+
+  it('errors on non-mapping foreign-keys, fk node, and missing target table', () => {
+    const block = parse(`database:
+  schemas:
+    s:
+      tables:
+        t:
+          columns:
+            id:
+              type: integer
+          foreign-keys: nope
+`)
+    expect(block.errors.some((e) => e.message === 'expected a "foreign-keys" mapping')).toBe(true)
+
+    const entry = parse(`database:
+  schemas:
+    s:
+      tables:
+        t:
+          columns:
+            id:
+              type: integer
+          foreign-keys:
+            fk: nope
+`)
+    expect(entry.errors.some((e) => e.message === 'expected a foreign-key mapping')).toBe(true)
+
+    const noTable = parse(`database:
+  schemas:
+    s:
+      tables:
+        t:
+          columns:
+            id:
+              type: integer
+          foreign-keys:
+            fk:
+              source-column: id
+              target-columns: id
+`)
+    expect(noTable.errors.some((e) => e.message.includes('missing a target "table"'))).toBe(true)
+  })
+
+  it('accepts the plural source-columns / singular target-column aliases', () => {
+    const { db, errors } = parse(`database:
+  schemas:
+    s:
+      tables:
+        a:
+          columns:
+            id:
+              type: integer
+        b:
+          columns:
+            a_id:
+              type: integer
+          foreign-keys:
+            fk:
+              source-columns:
+                - a_id
+              table: a
+              target-column: id
+`)
+    expect(errors).toEqual([])
+    expect(db.schemas[0].tables[1].foreignKeys[0]).toMatchObject({
+      sourceColumns: ['a_id'],
+      targetColumns: ['id'],
+    })
+  })
+
+  it('reports a foreign key with an unknown source column', () => {
+    const { errors } = parse(`database:
+  schemas:
+    s:
+      tables:
+        a:
+          columns:
+            id:
+              type: integer
+        b:
+          columns:
+            real:
+              type: integer
+          foreign-keys:
+            fk:
+              source-column: ghost
+              table: a
+              target-columns: id
+`)
+    expect(errors.some((e) => e.message === 'unknown source column "ghost"')).toBe(true)
+  })
 })

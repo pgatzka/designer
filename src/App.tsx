@@ -41,10 +41,7 @@ export default function App() {
     return () => window.clearTimeout(debounce.current)
   }, [text])
 
-  const tableCount = useMemo(
-    () => db.schemas.reduce((sum, s) => sum + s.tables.length, 0),
-    [db],
-  )
+  const tableCount = useMemo(() => db.schemas.reduce((sum, s) => sum + s.tables.length, 0), [db])
 
   return (
     <div className="app">

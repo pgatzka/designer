@@ -10,7 +10,13 @@
   --fk: #5b9cff;
   --uq: #b07bff;
   --ix: #5fcaa6;
-  font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-family:
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
 }
 
 * {

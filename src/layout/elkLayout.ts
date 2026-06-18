@@ -20,10 +20,7 @@ const LAYOUT_OPTIONS: Record<string, string> = {
  * computed `position`. Pure with respect to React Flow state — callers replace
  * their node array with the result.
  */
-export async function layoutGraph(
-  nodes: TableFlowNode[],
-  edges: Edge[],
-): Promise<TableFlowNode[]> {
+export async function layoutGraph(nodes: TableFlowNode[], edges: Edge[]): Promise<TableFlowNode[]> {
   if (nodes.length === 0) return nodes
 
   const graph: ElkNode = {

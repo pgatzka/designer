@@ -8,7 +8,9 @@ export function ErrorBar({ errors }: ErrorBarProps) {
   if (errors.length === 0) return null
   return (
     <div className="error-bar">
-      <span className="error-bar__count">{errors.length} issue{errors.length > 1 ? 's' : ''}</span>
+      <span className="error-bar__count">
+        {errors.length} issue{errors.length > 1 ? 's' : ''}
+      </span>
       <ul className="error-bar__list">
         {errors.map((e, i) => (
           <li key={i}>
