@@ -20,16 +20,32 @@ npm run build          # typecheck + production build
 
 ## CI/CD
 
-GitHub Actions (`.github/workflows/ci.yml`) runs on every push and pull request:
+GitHub Actions (`.github/workflows/ci.yml`) is split into small single-purpose jobs
+wired into a dependency graph (shared setup lives in `.github/actions/setup`):
 
-1. **`verify`** — ESLint, TypeScript typecheck, Prettier format check, tests with an
-   **enforced coverage gate** (vitest v8 thresholds in `vite.config.ts`), and a
-   production build. Coverage is uploaded as an artifact.
-2. **`sonar`** — SonarQube/SonarCloud scan, ingesting `coverage/lcov.info`. Runs only
-   when a `SONAR_TOKEN` secret is configured (skips cleanly otherwise).
-3. **`docker`** — on pushes to `main` and `v*` tags, builds the image and **publishes
-   it to GHCR** at `ghcr.io/pgatzka/designer` (tags: semver, `sha-<commit>`, and
-   `latest` on the default branch). Uses the built-in `GITHUB_TOKEN`.
+```
+verify-formatting → verify-compilation ┬→ verify-typecheck ─────────────┐
+                                       ├→ verify-lint ──────────────────┤
+                                       └→ verify-tests ┬→ verify-coverage → verify-sonar ┤
+                                                       └→ build-image ────────────────────┤
+                                                                                          → publish-image
+```
+
+- **verify-formatting** — Prettier (`format:check`).
+- **verify-compilation** — `npm run build` (TypeScript compiles + Vite bundles).
+- **verify-typecheck** — `tsc --noEmit`.
+- **verify-lint** — ESLint.
+- **verify-tests** — vitest.
+- **verify-coverage** — vitest with the **enforced coverage gate** (thresholds in
+  `vite.config.ts`); uploads `coverage/` as an artifact.
+- **verify-sonar** — SonarQube/SonarCloud scan ingesting `coverage/lcov.info`; runs
+  only when a `SONAR_TOKEN` secret is configured (skips cleanly otherwise).
+- **build-image** — builds the Docker image to a tarball artifact (no registry push),
+  so the Dockerfile is verified on every push/PR.
+- **publish-image** — only on `main` and `v*` tags: loads the built image and
+  **publishes to GHCR** at `ghcr.io/pgatzka/designer` (tags: semver, `sha-<commit>`,
+  and `latest` on the default branch) using the built-in `GITHUB_TOKEN`. Runs only
+  after build-image, verify-sonar, verify-lint and verify-typecheck all pass.
 
 ### Docker
 
