@@ -1,0 +1,45 @@
+# Visual Database Designer — self-host stack (uses the published image).
+#
+# Quick start:
+#   1. curl -O https://raw.githubusercontent.com/pgatzka/designer/main/docker-compose.example.yml
+#   2. curl -O https://raw.githubusercontent.com/pgatzka/designer/main/.env.example && mv .env.example .env
+#      (then edit .env: set a strong JWT_SECRET and POSTGRES_PASSWORD)
+#   3. docker compose -f docker-compose.example.yml --env-file .env up -d
+#   4. open http://localhost:3000 and register an account
+#
+# Data is kept in the named volume "pgdata". Upgrade with:
+#   docker compose -f docker-compose.example.yml --env-file .env pull && \
+#   docker compose -f docker-compose.example.yml --env-file .env up -d
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: designer
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-designer}
+      POSTGRES_DB: designer
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U designer -d designer']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  app:
+    image: ghcr.io/pgatzka/designer:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgres://designer:${POSTGRES_PASSWORD:-designer}@db:5432/designer
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET (>=16 chars) in your .env}
+      NODE_ENV: production
+      PORT: 3000
+    ports:
+      - '${APP_PORT:-3000}:3000'
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:

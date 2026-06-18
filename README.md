@@ -35,11 +35,34 @@ npm run format:check        # Prettier
 npm run build               # build frontend + compile backend
 ```
 
-## Run it (full stack, Docker)
+## Self-host with Docker (published image)
+
+No clone or build required — pull the published image and run it with Postgres using
+the example Compose file:
+
+```bash
+# 1. Grab the example compose file and env template
+curl -O https://raw.githubusercontent.com/pgatzka/designer/main/docker-compose.example.yml
+curl -o .env https://raw.githubusercontent.com/pgatzka/designer/main/.env.example
+
+# 2. Edit .env — set a strong JWT_SECRET (>=16 chars) and POSTGRES_PASSWORD
+#    (tip: openssl rand -hex 32)
+
+# 3. Start it
+docker compose -f docker-compose.example.yml --env-file .env up -d
+```
+
+Open <http://localhost:3000> and register an account. The image (`ghcr.io/pgatzka/designer`)
+serves the API and the SPA, and runs its database migrations on startup. Data persists in
+the `pgdata` volume. Configure via `.env`: `JWT_SECRET`, `POSTGRES_PASSWORD`,
+`IMAGE_TAG` (default `latest`), `APP_PORT` (default `3000`). Upgrade with
+`docker compose -f docker-compose.example.yml --env-file .env pull && … up -d`.
+
+## Run it (full stack from source)
 
 ```bash
 cp .env.example .env        # set JWT_SECRET (>=16 chars) and POSTGRES_PASSWORD
-docker compose up --build   # app on http://localhost:3000 + Postgres
+docker compose up --build   # builds locally; app on http://localhost:3000 + Postgres
 ```
 
 The backend serves both the API (`/api/...`) and the static frontend. Register a new
