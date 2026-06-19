@@ -1,4 +1,5 @@
 import type { Pool } from 'pg'
+import type { Logger } from '../designs/types'
 
 // gen_random_uuid() is built into PostgreSQL 13+.
 const SCHEMA = `
@@ -68,6 +69,13 @@ CREATE TABLE IF NOT EXISTS design_foreign_keys (
 `
 
 /** Apply the (idempotent) database schema. Safe to run on every startup. */
-export async function migrate(pool: Pool): Promise<void> {
-  await pool.query(SCHEMA)
+export async function migrate(pool: Pool, logger?: Logger): Promise<void> {
+  logger?.info({}, 'running database migrations')
+  try {
+    await pool.query(SCHEMA)
+  } catch (err) {
+    logger?.error({ err }, 'database migration failed')
+    throw err
+  }
+  logger?.info({}, 'database migrations complete')
 }

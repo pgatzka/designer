@@ -55,8 +55,20 @@ docker compose -f docker-compose.example.yml --env-file .env up -d
 Open <http://localhost:3000> and register an account. The image (`ghcr.io/pgatzka/designer`)
 serves the API and the SPA, and runs its database migrations on startup. Data persists in
 the `pgdata` volume. Configure via `.env`: `JWT_SECRET`, `POSTGRES_PASSWORD`,
-`IMAGE_TAG` (default `latest`), `APP_PORT` (default `3000`). Upgrade with
+`IMAGE_TAG` (default `latest`), `APP_PORT` (default `3000`), `LOG_LEVEL` (default `info`;
+set `debug` to trace schema-import connection/query steps). Upgrade with
 `docker compose -f docker-compose.example.yml --env-file .env pull && … up -d`.
+
+### Logging & troubleshooting
+
+The backend logs with **pino** (`LOG_LEVEL` controls verbosity; pretty-printed in
+development, JSON in production). Requests, auth events, schema imports (connect → each
+catalog query → row counts → success/failure) and database errors are logged with
+context. A global error handler logs every unhandled error and returns a real message to
+the client, so failures surface **both** in the logs and in the UI (the import dialog
+shows the exact cause inline, e.g. `password authentication failed … (28P01)` or
+`connect ECONNREFUSED …`; other failures appear in a dismissible banner). The browser
+console also logs client-side API failures (prefixed `[designer]`).
 
 ## Run it (full stack from source)
 

@@ -21,6 +21,7 @@ import { parse } from './schema/parse'
 import { serialize } from './schema/serialize'
 import { SEED_YAML } from './schema/seed'
 import { getFlavor, type FlavorId } from './schema/flavors'
+import { log } from './lib/log'
 import type { Database, ParseError } from './schema/types'
 
 const ACTIVE_KEY = 'designer:activeId'
@@ -61,6 +62,7 @@ export default function App() {
   const [db, setDb] = useState<Database>(EMPTY_DB)
   const [newOpen, setNewOpen] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
+  const [banner, setBanner] = useState<string | null>(null)
 
   const parseTimer = useRef<number | undefined>(undefined)
   const saveTimer = useRef<number | undefined>(undefined)
@@ -104,7 +106,10 @@ export default function App() {
           applyDesign(created)
         }
         setDesigns(list)
-      } catch {
+      } catch (e) {
+        const m = e instanceof Error ? e.message : String(e)
+        log.error('failed to load designs', { error: m })
+        setBanner(`Could not load your designs: ${m}`)
         setSaveStatus('error')
       } finally {
         setLoading(false)
@@ -142,7 +147,10 @@ export default function App() {
         setDesigns((prev) =>
           prev.map((d) => (d.id === activeId ? { ...d, updatedAt: updated.updatedAt } : d)),
         )
-      } catch {
+      } catch (e) {
+        const m = e instanceof Error ? e.message : String(e)
+        log.error('autosave failed', { error: m, designId: activeId })
+        setBanner(`Could not save changes: ${m}`)
         setSaveStatus('error')
       }
     }, 1000)
@@ -168,12 +176,16 @@ export default function App() {
   async function handleCreate(name: string, flavor: FlavorId) {
     setNewOpen(false)
     setBusy(true)
+    setBanner(null)
     try {
       const created = await createDesign(name, flavor, NEW_DESIGN_DB)
       setDesigns((prev) => [summary(created), ...prev])
       applyDesign(created)
       setSaveStatus('idle')
-    } catch {
+    } catch (e) {
+      const m = e instanceof Error ? e.message : String(e)
+      log.error('failed to create design', { error: m })
+      setBanner(`Could not create the design: ${m}`)
       setSaveStatus('error')
     } finally {
       setBusy(false)
@@ -184,6 +196,7 @@ export default function App() {
   // back to the dialog (which stays open) so the user can correct and retry.
   async function handleImport(name: string, flavor: FlavorId, connection: ImportConnection) {
     setBusy(true)
+    setBanner(null)
     try {
       const created = await importDesign(name, flavor, connection)
       setDesigns((prev) => [summary(created), ...prev])
@@ -211,7 +224,10 @@ export default function App() {
           applyDesign(created)
         }
       }
-    } catch {
+    } catch (e) {
+      const m = e instanceof Error ? e.message : String(e)
+      log.error('failed to delete design', { error: m, designId: id })
+      setBanner(`Could not delete the design: ${m}`)
       setSaveStatus('error')
     } finally {
       setBusy(false)
@@ -232,6 +248,18 @@ export default function App() {
 
   return (
     <div className="app">
+      {banner && (
+        <div className="app__error" role="alert">
+          <span className="app__error-msg">{banner}</span>
+          <button
+            className="app__error-close"
+            onClick={() => setBanner(null)}
+            aria-label="Dismiss error"
+          >
+            ×
+          </button>
+        </div>
+      )}
       <header className="app__header">
         <h1>Visual Database Designer</h1>
         <input

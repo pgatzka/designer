@@ -1,6 +1,7 @@
 import { Pool } from 'pg'
 import type {
   ConnectionConfig,
+  Logger,
   RawColumn,
   RawConstraint,
   RawForeignKey,
@@ -10,7 +11,9 @@ import type {
 const SYSTEM_SCHEMAS = `('pg_catalog', 'information_schema', 'pg_toast')`
 
 /** Introspect a PostgreSQL database into a flavor-agnostic {@link RawSchema}. */
-export async function inspectPostgres(conn: ConnectionConfig): Promise<RawSchema> {
+export async function inspectPostgres(conn: ConnectionConfig, logger?: Logger): Promise<RawSchema> {
+  const where = { host: conn.host, port: conn.port, database: conn.database, user: conn.user }
+  logger?.info(where, 'postgres: connecting')
   const pool = new Pool({
     host: conn.host,
     port: conn.port,
@@ -23,6 +26,7 @@ export async function inspectPostgres(conn: ConnectionConfig): Promise<RawSchema
   })
 
   try {
+    logger?.debug(where, 'postgres: querying columns')
     const columns = await pool.query<{
       schema: string
       table: string
@@ -41,6 +45,7 @@ export async function inspectPostgres(conn: ConnectionConfig): Promise<RawSchema
     )
 
     // Primary-key and unique constraints, with their ordered columns.
+    logger?.debug(where, 'postgres: querying constraints')
     const keys = await pool.query<{
       schema: string
       table: string
@@ -61,6 +66,7 @@ export async function inspectPostgres(conn: ConnectionConfig): Promise<RawSchema
     )
 
     // Foreign keys, with ordered source and target columns.
+    logger?.debug(where, 'postgres: querying foreign keys')
     const fks = await pool.query<{
       schema: string
       table: string
@@ -85,6 +91,7 @@ export async function inspectPostgres(conn: ConnectionConfig): Promise<RawSchema
     )
 
     // Secondary (non-unique, non-primary) indexes via the catalog.
+    logger?.debug(where, 'postgres: querying indexes')
     const indexes = await pool.query<{
       schema: string
       table: string
@@ -105,7 +112,7 @@ export async function inspectPostgres(conn: ConnectionConfig): Promise<RawSchema
        ORDER BY i.relname, x.ord`,
     )
 
-    return {
+    const result: RawSchema = {
       columns: columns.rows.map(
         (r): RawColumn => ({
           schema: r.schema,
@@ -139,6 +146,19 @@ export async function inspectPostgres(conn: ConnectionConfig): Promise<RawSchema
       ],
       foreignKeys: groupForeignKeys(fks.rows),
     }
+    logger?.info(
+      {
+        ...where,
+        columns: result.columns.length,
+        constraints: result.constraints.length,
+        foreignKeys: result.foreignKeys.length,
+      },
+      'postgres: introspection complete',
+    )
+    return result
+  } catch (err) {
+    logger?.error({ err, ...where }, 'postgres: introspection failed')
+    throw err
   } finally {
     await pool.end()
   }

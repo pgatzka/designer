@@ -3,6 +3,8 @@ export interface AuthUser {
   email: string
 }
 
+import { log } from '../lib/log'
+
 export class AuthError extends Error {}
 
 async function request(path: string, body?: unknown): Promise<Response> {
@@ -17,7 +19,9 @@ async function request(path: string, body?: unknown): Promise<Response> {
 async function userOrThrow(res: Response): Promise<AuthUser> {
   const data = await res.json().catch(() => ({}))
   if (!res.ok) {
-    throw new AuthError(data?.error ?? 'Something went wrong. Please try again.')
+    const message = data?.error || data?.message || 'Something went wrong. Please try again.'
+    log.error('auth request failed', { url: res.url, status: res.status, message })
+    throw new AuthError(message)
   }
   return data.user as AuthUser
 }

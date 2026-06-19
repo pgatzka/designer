@@ -117,5 +117,16 @@ export interface RawSchema {
 
 /** Connects to a source database and introspects its schema (injected for tests). */
 export interface SchemaInspector {
-  inspect(conn: ConnectionConfig): Promise<RawSchema>
+  inspect(conn: ConnectionConfig, logger?: Logger): Promise<RawSchema>
+}
+
+/**
+ * Minimal structured-logging surface satisfied by both pino and Fastify's
+ * `request.log`, so modules can log without depending on pino's types.
+ */
+export interface Logger {
+  info(obj: unknown, msg?: string): void
+  warn(obj: unknown, msg?: string): void
+  error(obj: unknown, msg?: string): void
+  debug(obj: unknown, msg?: string): void
 }

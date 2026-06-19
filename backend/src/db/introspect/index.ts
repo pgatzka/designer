@@ -1,4 +1,4 @@
-import type { ConnectionConfig, RawSchema, SchemaInspector } from '../../designs/types'
+import type { ConnectionConfig, Logger, RawSchema, SchemaInspector } from '../../designs/types'
 import { inspectPostgres } from './pg'
 import { inspectMysql } from './mysql'
 import { inspectSqlServer } from './sqlserver'
@@ -9,14 +9,14 @@ import { inspectSqlServer } from './sqlserver'
  * called, so constructing it (e.g. in `buildApp`) is free.
  */
 export class DriverSchemaInspector implements SchemaInspector {
-  inspect(conn: ConnectionConfig): Promise<RawSchema> {
+  inspect(conn: ConnectionConfig, logger?: Logger): Promise<RawSchema> {
     switch (conn.flavor) {
       case 'postgres':
-        return inspectPostgres(conn)
+        return inspectPostgres(conn, logger)
       case 'mysql':
-        return inspectMysql(conn)
+        return inspectMysql(conn, logger)
       case 'sqlserver':
-        return inspectSqlServer(conn)
+        return inspectSqlServer(conn, logger)
     }
   }
 }

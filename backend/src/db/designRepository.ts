@@ -8,6 +8,7 @@ import type {
   DesignSummary,
   FlavorId,
   ForeignKey,
+  Logger,
   SchemaNs,
   Table,
 } from '../designs/types'
@@ -33,7 +34,10 @@ function toSummary(row: DesignRow): DesignSummary {
 }
 
 export class PgDesignRepository implements DesignRepository {
-  constructor(private readonly pool: Pool) {}
+  constructor(
+    private readonly pool: Pool,
+    private readonly logger?: Logger,
+  ) {}
 
   async listByUser(userId: string): Promise<DesignSummary[]> {
     const res = await this.pool.query<DesignRow>(
@@ -110,6 +114,7 @@ export class PgDesignRepository implements DesignRepository {
       await client.query('COMMIT')
       return result
     } catch (err) {
+      this.logger?.error({ err }, 'design transaction rolled back')
       await client.query('ROLLBACK')
       throw err
     } finally {
@@ -119,6 +124,10 @@ export class PgDesignRepository implements DesignRepository {
 
   /** Insert a full normalized structure for a design (assumes none exists yet). */
   private async writeStructure(client: PoolClient, designId: string, db: Database): Promise<void> {
+    this.logger?.debug(
+      { designId, schemas: db.schemas.length },
+      'writing normalized design structure',
+    )
     for (const [si, schema] of db.schemas.entries()) {
       const schemaRes = await client.query<{ id: string }>(
         'INSERT INTO design_schemas (design_id, name, position) VALUES ($1, $2, $3) RETURNING id',

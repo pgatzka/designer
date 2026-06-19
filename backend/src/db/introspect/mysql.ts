@@ -1,13 +1,15 @@
 import { createConnection, type RowDataPacket } from 'mysql2/promise'
-import type { ConnectionConfig, RawColumn, RawSchema } from '../../designs/types'
+import type { ConnectionConfig, Logger, RawColumn, RawSchema } from '../../designs/types'
 import { groupConstraints, groupForeignKeys } from './pg'
 
 /**
  * Introspect a MySQL database into a {@link RawSchema}. In MySQL a "schema" is a
  * database, so the connected `database` becomes the single schema namespace.
  */
-export async function inspectMysql(conn: ConnectionConfig): Promise<RawSchema> {
+export async function inspectMysql(conn: ConnectionConfig, logger?: Logger): Promise<RawSchema> {
   const db = conn.database
+  const where = { host: conn.host, port: conn.port, database: db, user: conn.user }
+  logger?.info(where, 'mysql: connecting')
   const connection = await createConnection({
     host: conn.host,
     port: conn.port,
@@ -19,6 +21,7 @@ export async function inspectMysql(conn: ConnectionConfig): Promise<RawSchema> {
   })
 
   try {
+    logger?.debug(where, 'mysql: querying columns')
     const [cols] = await connection.query<RowDataPacket[]>(
       `SELECT table_name AS \`table\`, column_name AS name, data_type AS dataType,
               character_maximum_length AS charMaxLength, is_nullable AS nullable,
@@ -29,6 +32,7 @@ export async function inspectMysql(conn: ConnectionConfig): Promise<RawSchema> {
       [db],
     )
 
+    logger?.debug(where, 'mysql: querying indexes/constraints')
     const [keys] = await connection.query<RowDataPacket[]>(
       `SELECT table_name AS \`table\`, index_name AS name, non_unique, column_name AS \`column\`
        FROM information_schema.statistics
@@ -37,6 +41,7 @@ export async function inspectMysql(conn: ConnectionConfig): Promise<RawSchema> {
       [db],
     )
 
+    logger?.debug(where, 'mysql: querying foreign keys')
     const [fks] = await connection.query<RowDataPacket[]>(
       `SELECT table_name AS \`table\`, constraint_name AS name, column_name AS \`column\`,
               referenced_table_schema AS target_schema, referenced_table_name AS target_table,
@@ -47,7 +52,7 @@ export async function inspectMysql(conn: ConnectionConfig): Promise<RawSchema> {
       [db],
     )
 
-    return {
+    const result: RawSchema = {
       columns: cols.map(
         (r): RawColumn => ({
           schema: db,
@@ -85,6 +90,19 @@ export async function inspectMysql(conn: ConnectionConfig): Promise<RawSchema> {
         })),
       ),
     }
+    logger?.info(
+      {
+        ...where,
+        columns: result.columns.length,
+        constraints: result.constraints.length,
+        foreignKeys: result.foreignKeys.length,
+      },
+      'mysql: introspection complete',
+    )
+    return result
+  } catch (err) {
+    logger?.error({ err, ...where }, 'mysql: introspection failed')
+    throw err
   } finally {
     await connection.end()
   }

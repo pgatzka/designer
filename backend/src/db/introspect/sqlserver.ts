@@ -1,11 +1,16 @@
 import * as sql from 'mssql'
-import type { ConnectionConfig, RawColumn, RawSchema } from '../../designs/types'
+import type { ConnectionConfig, Logger, RawColumn, RawSchema } from '../../designs/types'
 import { groupConstraints, groupForeignKeys } from './pg'
 
 const SYSTEM_SCHEMAS = `('sys', 'INFORMATION_SCHEMA')`
 
 /** Introspect a SQL Server database into a flavor-agnostic {@link RawSchema}. */
-export async function inspectSqlServer(conn: ConnectionConfig): Promise<RawSchema> {
+export async function inspectSqlServer(
+  conn: ConnectionConfig,
+  logger?: Logger,
+): Promise<RawSchema> {
+  const where = { host: conn.host, port: conn.port, database: conn.database, user: conn.user }
+  logger?.info(where, 'sqlserver: connecting')
   const pool = new sql.ConnectionPool({
     server: conn.host,
     port: conn.port,
@@ -19,6 +24,7 @@ export async function inspectSqlServer(conn: ConnectionConfig): Promise<RawSchem
   await pool.connect()
 
   try {
+    logger?.debug(where, 'sqlserver: querying columns')
     const columns = await pool.request().query(
       `SELECT TABLE_SCHEMA AS [schema], TABLE_NAME AS [table], COLUMN_NAME AS name,
               DATA_TYPE AS dataType, CHARACTER_MAXIMUM_LENGTH AS charMaxLength,
@@ -28,6 +34,7 @@ export async function inspectSqlServer(conn: ConnectionConfig): Promise<RawSchem
        ORDER BY TABLE_SCHEMA, TABLE_NAME, ORDINAL_POSITION`,
     )
 
+    logger?.debug(where, 'sqlserver: querying constraints')
     const keys = await pool.request().query(
       `SELECT tc.TABLE_SCHEMA AS [schema], tc.TABLE_NAME AS [table],
               tc.CONSTRAINT_NAME AS name, tc.CONSTRAINT_TYPE AS type, kcu.COLUMN_NAME AS [column]
@@ -40,6 +47,7 @@ export async function inspectSqlServer(conn: ConnectionConfig): Promise<RawSchem
        ORDER BY tc.CONSTRAINT_NAME, kcu.ORDINAL_POSITION`,
     )
 
+    logger?.debug(where, 'sqlserver: querying foreign keys')
     const fks = await pool.request().query(
       `SELECT fk.name AS name, sch.name AS [schema], tp.name AS [table], cp.name AS [column],
               rsch.name AS target_schema, rt.name AS target_table, cr.name AS target_column
@@ -54,6 +62,7 @@ export async function inspectSqlServer(conn: ConnectionConfig): Promise<RawSchem
        ORDER BY fk.name, fkc.constraint_column_id`,
     )
 
+    logger?.debug(where, 'sqlserver: querying indexes')
     const indexes = await pool.request().query(
       `SELECT sch.name AS [schema], t.name AS [table], i.name AS name, c.name AS [column]
        FROM sys.indexes i
@@ -65,7 +74,7 @@ export async function inspectSqlServer(conn: ConnectionConfig): Promise<RawSchem
        ORDER BY i.name, ic.key_ordinal`,
     )
 
-    return {
+    const result: RawSchema = {
       columns: (columns.recordset as RawColumnRow[]).map(
         (r): RawColumn => ({
           schema: r.schema,
@@ -99,6 +108,19 @@ export async function inspectSqlServer(conn: ConnectionConfig): Promise<RawSchem
       ],
       foreignKeys: groupForeignKeys(fks.recordset as FkRow[]),
     }
+    logger?.info(
+      {
+        ...where,
+        columns: result.columns.length,
+        constraints: result.constraints.length,
+        foreignKeys: result.foreignKeys.length,
+      },
+      'sqlserver: introspection complete',
+    )
+    return result
+  } catch (err) {
+    logger?.error({ err, ...where }, 'sqlserver: introspection failed')
+    throw err
   } finally {
     await pool.close()
   }

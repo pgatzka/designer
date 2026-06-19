@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Modal } from './Modal'
 import { FLAVORS, type FlavorId } from '../schema/flavors'
 import type { ImportConnection } from '../designs/api'
+import { log } from '../lib/log'
 
 interface ImportDialogProps {
   onCancel: () => void
@@ -59,7 +60,9 @@ export function ImportDialog({ onCancel, onImport }: ImportDialogProps) {
         ssl,
       })
     } catch (e) {
-      setError((e as Error).message || 'Import failed')
+      const message = (e as Error).message || 'Import failed'
+      log.error('import dialog: import failed', { message })
+      setError(message)
       setSubmitting(false)
     }
   }

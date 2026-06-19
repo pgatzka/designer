@@ -1,5 +1,6 @@
 import type { Database } from '../schema/types'
 import type { FlavorId } from '../schema/flavors'
+import { log } from '../lib/log'
 
 export interface DesignSummary {
   id: string
@@ -15,7 +16,13 @@ export interface Design extends DesignSummary {
 
 async function readJson(res: Response): Promise<Record<string, unknown>> {
   const data = await res.json().catch(() => ({}))
-  if (!res.ok) throw new Error((data as { error?: string })?.error ?? 'Request failed')
+  if (!res.ok) {
+    // Prefer our `{ error }` shape, then Fastify's `{ message }`, then a generic.
+    const d = data as { error?: string; message?: string }
+    const message = d?.error || d?.message || `Request failed (${res.status})`
+    log.error('api request failed', { url: res.url, status: res.status, message })
+    throw new Error(message)
+  }
   return data as Record<string, unknown>
 }
 
@@ -58,13 +65,30 @@ export async function importDesign(
   flavor: FlavorId,
   connection: ImportConnection,
 ): Promise<Design> {
-  const res = await fetch('/api/designs/import', {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ name, flavor, connection }),
+  log.info('importing schema', {
+    flavor,
+    host: connection.host,
+    port: connection.port,
+    database: connection.database,
+    user: connection.user,
+    ssl: !!connection.ssl,
   })
-  return (await readJson(res)).design as Design
+  let res: Response
+  try {
+    res = await fetch('/api/designs/import', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ name, flavor, connection }),
+    })
+  } catch (e) {
+    // Network-level failure (server unreachable, CORS, etc.) — fetch rejects.
+    log.error('import request did not reach the server', { error: (e as Error).message })
+    throw new Error(`Could not reach the server: ${(e as Error).message}`)
+  }
+  const design = (await readJson(res)).design as Design
+  log.info('import succeeded', { designId: design.id })
+  return design
 }
 
 export async function updateDesign(

@@ -1,7 +1,12 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import { createDesignSchema, importDesignSchema, updateDesignSchema } from './schema'
 import { assembleDatabase } from './introspect'
+import { describeError } from '../errors'
 import type { DesignRepository, SchemaInspector } from './types'
+
+function tableCount(db: { schemas: Array<{ tables: unknown[] }> }): number {
+  return db.schemas.reduce((n, s) => n + s.tables.length, 0)
+}
 
 function userId(request: FastifyRequest): string {
   return (request.user as { sub: string }).sub
@@ -45,17 +50,30 @@ export function registerDesignRoutes(
       return reply.code(400).send({ error: parsed.error.issues[0]?.message ?? 'Invalid request' })
     }
     const { name, flavor, connection } = parsed.data
-
-    let database
-    try {
-      const raw = await inspector.inspect({ flavor, ...connection })
-      database = assembleDatabase(flavor, raw)
-    } catch (err) {
-      return reply.code(400).send({ error: `Import failed: ${(err as Error).message}` })
+    const where = {
+      flavor,
+      host: connection.host,
+      port: connection.port,
+      database: connection.database,
+      user: connection.user,
+      ssl: !!connection.ssl,
     }
+    request.log.info(where, 'schema import requested')
 
-    const design = await designs.create(userId(request), name, flavor, database)
-    return reply.code(201).send({ design })
+    try {
+      const raw = await inspector.inspect({ flavor, ...connection }, request.log)
+      const database = assembleDatabase(flavor, raw)
+      request.log.info(
+        { ...where, schemas: database.schemas.length, tables: tableCount(database) },
+        'source schema introspected',
+      )
+      const design = await designs.create(userId(request), name, flavor, database)
+      request.log.info({ designId: design.id }, 'schema import succeeded')
+      return reply.code(201).send({ design })
+    } catch (err) {
+      request.log.error({ err, ...where }, 'schema import failed')
+      return reply.code(400).send({ error: `Import failed: ${describeError(err)}` })
+    }
   })
 
   app.get('/api/designs/:id', { preHandler: requireAuth }, async (request, reply) => {

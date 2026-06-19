@@ -35,9 +35,13 @@ export function registerAuthRoutes(app: FastifyInstance, authService: AuthServic
     try {
       const user = await authService.register(parsed.data.email, parsed.data.password)
       await startSession(reply, user)
+      request.log.info({ userId: user.id }, 'user registered')
       return reply.code(201).send({ user })
     } catch (err) {
-      if (err instanceof EmailTakenError) return reply.code(409).send({ error: err.message })
+      if (err instanceof EmailTakenError) {
+        request.log.warn({ email: parsed.data.email }, 'registration rejected: email taken')
+        return reply.code(409).send({ error: err.message })
+      }
       throw err
     }
   })
@@ -48,10 +52,13 @@ export function registerAuthRoutes(app: FastifyInstance, authService: AuthServic
     try {
       const user = await authService.login(parsed.data.email, parsed.data.password)
       await startSession(reply, user)
+      request.log.info({ userId: user.id }, 'user logged in')
       return reply.send({ user })
     } catch (err) {
-      if (err instanceof InvalidCredentialsError)
+      if (err instanceof InvalidCredentialsError) {
+        request.log.warn({ email: parsed.data.email }, 'login rejected: invalid credentials')
         return reply.code(401).send({ error: err.message })
+      }
       throw err
     }
   })

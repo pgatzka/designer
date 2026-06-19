@@ -47,6 +47,37 @@ body,
   background: var(--panel);
 }
 
+.app__error {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  background: #3a1d1d;
+  border-bottom: 1px solid #ff8d8d;
+  color: #ffd7d7;
+  font-size: 13px;
+}
+
+.app__error-msg {
+  flex: 1;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.app__error-close {
+  background: transparent;
+  border: none;
+  color: #ffd7d7;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+.app__error-close:hover {
+  color: #fff;
+}
+
 .app__designname {
   background: var(--bg);
   border: 1px solid var(--border);

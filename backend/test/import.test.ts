@@ -126,4 +126,22 @@ describe('design import route', () => {
     expect(res.statusCode).toBe(400)
     expect(res.json().error).toMatch(/Import failed: ECONNREFUSED/)
   })
+
+  it('surfaces a real message for an AggregateError with an empty message', async () => {
+    const agg = new AggregateError(
+      [Object.assign(new Error('connect ECONNREFUSED 127.0.0.1:5432'), { code: 'ECONNREFUSED' })],
+      '',
+    )
+    app = appWith(new FakeInspector(agg))
+    const cookie = await authedCookie()
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/designs/import',
+      headers: { cookie },
+      payload: { name: 'x', flavor: 'postgres', connection: CONNECTION },
+    })
+    expect(res.statusCode).toBe(400)
+    // Previously this produced the unhelpful "Import failed: " with no detail.
+    expect(res.json().error).toContain('ECONNREFUSED')
+  })
 })
