@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { FLAVORS, getFlavor, isFlavorId, typeNames, validateColumnType } from './flavors'
+import {
+  FLAVORS,
+  getFlavor,
+  isFlavorId,
+  lengthRuleFor,
+  typeNames,
+  validateColumnType,
+} from './flavors'
 
 describe('flavor catalog', () => {
   it('isFlavorId recognizes known ids only', () => {
@@ -20,6 +27,13 @@ describe('flavor catalog', () => {
   it('typeNames lists the catalog type names', () => {
     expect(typeNames(FLAVORS.postgres)).toContain('integer')
     expect(typeNames(FLAVORS.mysql)).toContain('varchar')
+  })
+
+  it('lengthRuleFor returns the per-type length rule (case-insensitive)', () => {
+    expect(lengthRuleFor(FLAVORS.postgres, 'varchar')).toBe('optional')
+    expect(lengthRuleFor(FLAVORS.postgres, 'INTEGER')).toBe('forbidden')
+    expect(lengthRuleFor(FLAVORS.mysql, 'varchar')).toBe('required')
+    expect(lengthRuleFor(FLAVORS.mysql, 'nope')).toBeUndefined()
   })
 })
 

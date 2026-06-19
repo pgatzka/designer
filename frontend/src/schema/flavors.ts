@@ -117,6 +117,11 @@ export function typeNames(flavor: Flavor): string[] {
   return flavor.types.map((t) => t.name)
 }
 
+/** The length rule for a type in this flavor, or `undefined` when unknown. */
+export function lengthRuleFor(flavor: Flavor, type: string): LengthRule | undefined {
+  return flavor.types.find((t) => t.name === type.toLowerCase())?.length
+}
+
 /**
  * Validate a column's type (and its length) against a flavor's catalog.
  * Returns an error message, or `null` when the column is valid. Type names are
@@ -127,15 +132,15 @@ export function validateColumnType(
   type: string,
   length: number | undefined,
 ): string | null {
-  const def = flavor.types.find((t) => t.name === type.toLowerCase())
-  if (!def) {
+  const rule = lengthRuleFor(flavor, type)
+  if (!rule) {
     return `unknown ${flavor.label} type "${type}"`
   }
   const hasLength = length != null
-  if (def.length === 'required' && !hasLength) {
+  if (rule === 'required' && !hasLength) {
     return `${flavor.label} type "${type}" requires a length`
   }
-  if (def.length === 'forbidden' && hasLength) {
+  if (rule === 'forbidden' && hasLength) {
     return `${flavor.label} type "${type}" does not take a length`
   }
   return null
