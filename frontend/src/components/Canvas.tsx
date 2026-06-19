@@ -13,6 +13,7 @@ import {
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import type { Column, ConstraintType, Database, ForeignKey } from '../schema/types'
+import type { Flavor } from '../schema/flavors'
 import { toReactFlow, type TableFlowNode } from '../graph/toReactFlow'
 import { layoutGraph } from '../layout/elkLayout'
 import {
@@ -69,10 +70,11 @@ const CONSTRAINT_PREFIX: Record<ConstraintType, string> = {
 
 interface CanvasProps {
   db: Database
+  flavor?: Flavor
   onChange: (next: Database) => void
 }
 
-function Flow({ db, onChange }: CanvasProps) {
+function Flow({ db, flavor, onChange }: CanvasProps) {
   const [nodes, setNodes, onNodesChange] = useNodesState<TableFlowNode>([])
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([])
   const { fitView } = useReactFlow()
@@ -237,7 +239,7 @@ function Flow({ db, onChange }: CanvasProps) {
         <ContextMenu x={menu.x} y={menu.y} items={buildItems(menu)} onClose={() => setMenu(null)} />
       )}
 
-      {dialog && renderDialog(dialog, db, apply, () => setDialog(null), onChange)}
+      {dialog && renderDialog(dialog, db, apply, () => setDialog(null), onChange, flavor)}
     </CanvasActionsContext.Provider>
   )
 }
@@ -248,6 +250,7 @@ function renderDialog(
   apply: (next: Database) => void,
   close: () => void,
   onChange: (next: Database) => void,
+  flavor: Flavor | undefined,
 ) {
   switch (dialog.kind) {
     case 'add-column': {
@@ -257,6 +260,7 @@ function renderDialog(
           title="Add column"
           tableLabel={`${dialog.schema}.${dialog.table}`}
           taken={t?.columns.map((c) => c.name) ?? []}
+          flavor={flavor}
           onCancel={close}
           onSubmit={(col) => apply(addColumn(db, dialog.schema, dialog.table, col))}
         />
@@ -270,6 +274,7 @@ function renderDialog(
           tableLabel={`${dialog.schema}.${dialog.table}`}
           initial={dialog.column}
           taken={(t?.columns.map((c) => c.name) ?? []).filter((n) => n !== dialog.column.name)}
+          flavor={flavor}
           onCancel={close}
           onSubmit={(col) =>
             apply(updateColumn(db, dialog.schema, dialog.table, dialog.column.name, col))
@@ -373,10 +378,10 @@ function renderDialog(
   }
 }
 
-export function Canvas({ db, onChange }: CanvasProps) {
+export function Canvas({ db, flavor, onChange }: CanvasProps) {
   return (
     <ReactFlowProvider>
-      <Flow db={db} onChange={onChange} />
+      <Flow db={db} flavor={flavor} onChange={onChange} />
     </ReactFlowProvider>
   )
 }

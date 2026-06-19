@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { Modal } from './Modal'
 import type { Column } from '../schema/types'
+import { typeNames, validateColumnType, type Flavor } from '../schema/flavors'
 
-const COMMON_TYPES = [
+const FALLBACK_TYPES = [
   'integer',
   'bigint',
   'varchar',
@@ -21,6 +22,8 @@ interface ColumnDialogProps {
   initial?: Column
   /** Existing column names in the table (excluding the one being edited). */
   taken: string[]
+  /** Active design flavor — drives the type list and length-rule validation. */
+  flavor?: Flavor
   onCancel: () => void
   onSubmit: (column: Column) => void
 }
@@ -30,11 +33,12 @@ export function ColumnDialog({
   tableLabel,
   initial,
   taken,
+  flavor,
   onCancel,
   onSubmit,
 }: ColumnDialogProps) {
   const [name, setName] = useState(initial?.name ?? '')
-  const [type, setType] = useState(initial?.type ?? 'varchar')
+  const [type, setType] = useState(initial?.type ?? (flavor ? typeNames(flavor)[0] : 'varchar'))
   const [length, setLength] = useState(initial?.length != null ? String(initial.length) : '')
   const [nullable, setNullable] = useState(initial?.nullable ?? true)
 
@@ -42,7 +46,14 @@ export function ColumnDialog({
   const duplicate = taken.includes(trimmed)
   const lengthNum = length.trim() === '' ? undefined : Number(length)
   const lengthValid = lengthNum === undefined || (Number.isInteger(lengthNum) && lengthNum > 0)
-  const valid = trimmed.length > 0 && !duplicate && type.trim().length > 0 && lengthValid
+  const typeError =
+    flavor && type.trim().length > 0 && lengthValid
+      ? validateColumnType(flavor, type.trim(), lengthNum)
+      : null
+  const valid =
+    trimmed.length > 0 && !duplicate && type.trim().length > 0 && lengthValid && !typeError
+
+  const types = flavor ? typeNames(flavor) : FALLBACK_TYPES
 
   function submit() {
     if (!valid) return
@@ -77,11 +88,12 @@ export function ColumnDialog({
           spellCheck={false}
         />
         <datalist id="column-types">
-          {COMMON_TYPES.map((t) => (
+          {types.map((t) => (
             <option key={t} value={t} />
           ))}
         </datalist>
       </label>
+      {typeError && <p className="field__error">{typeError}</p>}
 
       <label className="field">
         <span>Length (optional)</span>

@@ -18,6 +18,10 @@ CREATE TABLE IF NOT EXISTS designs (
 );
 CREATE INDEX IF NOT EXISTS idx_designs_user ON designs(user_id);
 
+-- Per-design database flavor (chosen at creation, immutable). Existing rows
+-- predate flavors and default to postgres.
+ALTER TABLE designs ADD COLUMN IF NOT EXISTS flavor text NOT NULL DEFAULT 'postgres';
+
 -- A design's parsed structure, stored normalized (not as a YAML blob).
 CREATE TABLE IF NOT EXISTS design_schemas (
   id        uuid PRIMARY KEY DEFAULT gen_random_uuid(),

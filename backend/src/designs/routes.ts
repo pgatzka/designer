@@ -25,7 +25,12 @@ export function registerDesignRoutes(app: FastifyInstance, designs: DesignReposi
     if (!parsed.success) {
       return reply.code(400).send({ error: parsed.error.issues[0]?.message ?? 'Invalid design' })
     }
-    const design = await designs.create(userId(request), parsed.data.name, parsed.data.database)
+    const design = await designs.create(
+      userId(request),
+      parsed.data.name,
+      parsed.data.flavor,
+      parsed.data.database,
+    )
     return reply.code(201).send({ design })
   })
 

@@ -186,6 +186,14 @@ into objects and persisted **normalized** (`designs → design_schemas → desig
 design_columns / design_constraints / design_foreign_keys`). On load the structure is
 read back and serialized to canonical YAML for the editor.
 
+Each design has a **flavor** — **PostgreSQL**, **MySQL** or **SQL Server** — chosen in
+the **New design** dialog and **fixed for the life of the design** (it is design
+metadata, not part of the editable YAML; the header shows it read-only). The flavor
+drives **strict column-type validation**: a column whose `type` is not in the flavor's
+catalog, or whose `length` violates the type's rule (e.g. MySQL `varchar` *requires* a
+length, PostgreSQL `integer` *forbids* one), is a parse error in the error bar and is
+**not saved**. The catalog lives in `frontend/src/schema/flavors.ts`.
+
 Frontend (`frontend/src/`):
 
 - `schema/parse.ts` — YAML → typed `Database`; `schema/serialize.ts` — `Database` → YAML.

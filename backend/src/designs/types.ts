@@ -37,9 +37,12 @@ export interface Database {
   schemas: SchemaNs[]
 }
 
+export type FlavorId = 'postgres' | 'mysql' | 'sqlserver'
+
 export interface DesignSummary {
   id: string
   name: string
+  flavor: FlavorId
   createdAt: string
   updatedAt: string
 }
@@ -51,7 +54,7 @@ export interface Design extends DesignSummary {
 /** Persistence boundary for designs (injected so logic is testable without a DB). */
 export interface DesignRepository {
   listByUser(userId: string): Promise<DesignSummary[]>
-  create(userId: string, name: string, database: Database): Promise<Design>
+  create(userId: string, name: string, flavor: FlavorId, database: Database): Promise<Design>
   get(userId: string, id: string): Promise<Design | null>
   update(
     userId: string,

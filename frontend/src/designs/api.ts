@@ -1,8 +1,10 @@
 import type { Database } from '../schema/types'
+import type { FlavorId } from '../schema/flavors'
 
 export interface DesignSummary {
   id: string
   name: string
+  flavor: FlavorId
   createdAt: string
   updatedAt: string
 }
@@ -27,12 +29,16 @@ export async function getDesign(id: string): Promise<Design> {
   return data.design as Design
 }
 
-export async function createDesign(name: string, database: Database): Promise<Design> {
+export async function createDesign(
+  name: string,
+  flavor: FlavorId,
+  database: Database,
+): Promise<Design> {
   const res = await fetch('/api/designs', {
     method: 'POST',
     credentials: 'include',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ name, database }),
+    body: JSON.stringify({ name, flavor, database }),
   })
   return (await readJson(res)).design as Design
 }

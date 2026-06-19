@@ -38,8 +38,11 @@ export const databaseSchema = z.object({
 
 export const designNameSchema = z.string().trim().min(1, 'Name is required').max(120)
 
+export const flavorSchema = z.enum(['postgres', 'mysql', 'sqlserver'])
+
 export const createDesignSchema = z.object({
   name: designNameSchema,
+  flavor: flavorSchema,
   database: databaseSchema,
 })
 

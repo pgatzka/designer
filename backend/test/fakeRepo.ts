@@ -1,5 +1,11 @@
 import type { NewUser, StoredUser, UserRepository } from '../src/auth/types'
-import type { Database, Design, DesignRepository, DesignSummary } from '../src/designs/types'
+import type {
+  Database,
+  Design,
+  DesignRepository,
+  DesignSummary,
+  FlavorId,
+} from '../src/designs/types'
 
 /** In-memory UserRepository for tests — mirrors the unique-email constraint. */
 export class FakeUserRepository implements UserRepository {
@@ -34,15 +40,27 @@ export class FakeDesignRepository implements DesignRepository {
     return [...this.items.values()]
       .filter((d) => d.userId === userId)
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
-      .map(({ id, name, createdAt, updatedAt }) => ({ id, name, createdAt, updatedAt }))
+      .map(({ id, name, flavor, createdAt, updatedAt }) => ({
+        id,
+        name,
+        flavor,
+        createdAt,
+        updatedAt,
+      }))
   }
 
-  async create(userId: string, name: string, database: Database): Promise<Design> {
+  async create(
+    userId: string,
+    name: string,
+    flavor: FlavorId,
+    database: Database,
+  ): Promise<Design> {
     const now = new Date().toISOString()
     const design = {
       id: String(++this.seq),
       userId,
       name,
+      flavor,
       createdAt: now,
       updatedAt: now,
       database,
@@ -79,6 +97,7 @@ export class FakeDesignRepository implements DesignRepository {
     return {
       id: d.id,
       name: d.name,
+      flavor: d.flavor,
       createdAt: d.createdAt,
       updatedAt: d.updatedAt,
       database: d.database,

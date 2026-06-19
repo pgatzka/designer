@@ -55,15 +55,16 @@ describe('design routes', () => {
       method: 'POST',
       url: '/api/designs',
       headers: { cookie },
-      payload: { name: 'My design', database: DB },
+      payload: { name: 'My design', flavor: 'mysql', database: DB },
     })
     expect(created.statusCode).toBe(201)
     const id = created.json().design.id
     expect(created.json().design.database.schemas[0].tables[0].name).toBe('user')
+    expect(created.json().design.flavor).toBe('mysql')
 
     const list = await app.inject({ method: 'GET', url: '/api/designs', headers: { cookie } })
     expect(list.json().designs).toHaveLength(1)
-    expect(list.json().designs[0]).toMatchObject({ id, name: 'My design' })
+    expect(list.json().designs[0]).toMatchObject({ id, name: 'My design', flavor: 'mysql' })
 
     const fetched = await app.inject({
       method: 'GET',
@@ -81,6 +82,8 @@ describe('design routes', () => {
     })
     expect(updated.statusCode).toBe(200)
     expect(updated.json().design.name).toBe('Renamed')
+    // Flavor is immutable: it survives a name update (and there is no way to set it).
+    expect(updated.json().design.flavor).toBe('mysql')
 
     const del = await app.inject({
       method: 'DELETE',
@@ -99,7 +102,29 @@ describe('design routes', () => {
       method: 'POST',
       url: '/api/designs',
       headers: { cookie },
-      payload: { name: '', database: DB },
+      payload: { name: '', flavor: 'postgres', database: DB },
+    })
+    expect(res.statusCode).toBe(400)
+  })
+
+  it('rejects an unknown flavor with 400', async () => {
+    const cookie = await authedCookie()
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/designs',
+      headers: { cookie },
+      payload: { name: 'x', flavor: 'sqlite', database: DB },
+    })
+    expect(res.statusCode).toBe(400)
+  })
+
+  it('rejects a create payload missing the flavor with 400', async () => {
+    const cookie = await authedCookie()
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/designs',
+      headers: { cookie },
+      payload: { name: 'x', database: DB },
     })
     expect(res.statusCode).toBe(400)
   })

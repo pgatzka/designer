@@ -6,6 +6,7 @@ import type {
   Design,
   DesignRepository,
   DesignSummary,
+  FlavorId,
   ForeignKey,
   SchemaNs,
   Table,
@@ -14,14 +15,18 @@ import type {
 interface DesignRow {
   id: string
   name: string
+  flavor: string
   created_at: Date
   updated_at: Date
 }
+
+const DESIGN_COLUMNS = 'id, name, flavor, created_at, updated_at'
 
 function toSummary(row: DesignRow): DesignSummary {
   return {
     id: row.id,
     name: row.name,
+    flavor: row.flavor as FlavorId,
     createdAt: row.created_at.toISOString(),
     updatedAt: row.updated_at.toISOString(),
   }
@@ -32,17 +37,22 @@ export class PgDesignRepository implements DesignRepository {
 
   async listByUser(userId: string): Promise<DesignSummary[]> {
     const res = await this.pool.query<DesignRow>(
-      'SELECT id, name, created_at, updated_at FROM designs WHERE user_id = $1 ORDER BY updated_at DESC',
+      `SELECT ${DESIGN_COLUMNS} FROM designs WHERE user_id = $1 ORDER BY updated_at DESC`,
       [userId],
     )
     return res.rows.map(toSummary)
   }
 
-  async create(userId: string, name: string, database: Database): Promise<Design> {
+  async create(
+    userId: string,
+    name: string,
+    flavor: FlavorId,
+    database: Database,
+  ): Promise<Design> {
     return this.tx(async (client) => {
       const res = await client.query<DesignRow>(
-        'INSERT INTO designs (user_id, name) VALUES ($1, $2) RETURNING id, name, created_at, updated_at',
-        [userId, name],
+        `INSERT INTO designs (user_id, name, flavor) VALUES ($1, $2, $3) RETURNING ${DESIGN_COLUMNS}`,
+        [userId, name, flavor],
       )
       const row = res.rows[0]
       await this.writeStructure(client, row.id, database)
@@ -60,7 +70,7 @@ export class PgDesignRepository implements DesignRepository {
         `UPDATE designs
          SET name = COALESCE($3, name), updated_at = now()
          WHERE id = $1 AND user_id = $2
-         RETURNING id, name, created_at, updated_at`,
+         RETURNING ${DESIGN_COLUMNS}`,
         [id, userId, patch.name ?? null],
       )
       const row = res.rows[0]
@@ -76,7 +86,7 @@ export class PgDesignRepository implements DesignRepository {
 
   async get(userId: string, id: string): Promise<Design | null> {
     const res = await this.pool.query<DesignRow>(
-      'SELECT id, name, created_at, updated_at FROM designs WHERE id = $1 AND user_id = $2',
+      `SELECT ${DESIGN_COLUMNS} FROM designs WHERE id = $1 AND user_id = $2`,
       [id, userId],
     )
     const row = res.rows[0]

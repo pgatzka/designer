@@ -10,6 +10,7 @@ import type {
   SchemaNs,
   Table,
 } from './types'
+import { getFlavor, validateColumnType, type Flavor } from './flavors'
 
 const CONSTRAINT_TYPES: ConstraintType[] = ['primary-key', 'unique', 'index']
 
@@ -30,9 +31,14 @@ const EMPTY_DB: Database = { schemas: [] }
  * Parse the YAML source into a {@link Database}, collecting validation errors
  * instead of throwing. On a YAML syntax error an empty database is returned with
  * a single error describing it.
+ *
+ * When `flavorId` resolves to a known flavor, each column's type and length are
+ * validated against that flavor's catalog (strict). Without a flavor (legacy /
+ * initial bootstrap) type validation is skipped.
  */
-export function parse(text: string): ParseResult {
+export function parse(text: string, flavorId?: string): ParseResult {
   const errors: ParseError[] = []
+  const flavor = getFlavor(flavorId)
 
   let doc: unknown
   try {
@@ -67,7 +73,7 @@ export function parse(text: string): ParseResult {
       errors.push({ path: schemaPath, message: 'expected a schema mapping' })
       continue
     }
-    const tables = parseTables(schemaName, schemaNode.tables, schemaPath, errors)
+    const tables = parseTables(schemaName, schemaNode.tables, schemaPath, errors, flavor)
     schemas.push({ name: schemaName, tables })
   }
 
@@ -81,6 +87,7 @@ function parseTables(
   tablesNode: unknown,
   schemaPath: string,
   errors: ParseError[],
+  flavor: Flavor | undefined,
 ): Table[] {
   if (tablesNode == null) return []
   if (!isRecord(tablesNode)) {
@@ -99,7 +106,7 @@ function parseTables(
     tables.push({
       schema: schemaName,
       name: tableName,
-      columns: parseColumns(tableNode.columns, tablePath, errors),
+      columns: parseColumns(tableNode.columns, tablePath, errors, flavor),
       constraints: parseConstraints(tableNode, tablePath, errors),
       foreignKeys: parseForeignKeys(tableNode['foreign-keys'], tablePath, errors),
     })
@@ -107,7 +114,12 @@ function parseTables(
   return tables
 }
 
-function parseColumns(columnsNode: unknown, tablePath: string, errors: ParseError[]): Column[] {
+function parseColumns(
+  columnsNode: unknown,
+  tablePath: string,
+  errors: ParseError[],
+  flavor: Flavor | undefined,
+): Column[] {
   if (columnsNode == null) return []
   if (!isRecord(columnsNode)) {
     errors.push({ path: `${tablePath}.columns`, message: 'expected a "columns" mapping' })
@@ -123,14 +135,26 @@ function parseColumns(columnsNode: unknown, tablePath: string, errors: ParseErro
       continue
     }
 
-    if (typeof node.type !== 'string' || node.type.length === 0) {
+    const hasType = typeof node.type === 'string' && node.type.length > 0
+    if (!hasType) {
       errors.push({ path: `${path}.type`, message: 'column is missing a string "type"' })
     }
+    const hasLength = node.length != null && typeof node.length === 'number'
     if (node.length != null && typeof node.length !== 'number') {
       errors.push({ path: `${path}.length`, message: '"length" must be a number' })
     }
     if (node.nullable != null && typeof node.nullable !== 'boolean') {
       errors.push({ path: `${path}.nullable`, message: '"nullable" must be a boolean' })
+    }
+
+    // Strict per-flavor type validation (only when the type/length are well-formed).
+    if (flavor && hasType) {
+      const message = validateColumnType(
+        flavor,
+        node.type as string,
+        hasLength ? (node.length as number) : undefined,
+      )
+      if (message) errors.push({ path: `${path}.type`, message })
     }
 
     columns.push({

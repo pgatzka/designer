@@ -382,6 +382,50 @@ ${fk}
     ).toBe(true)
   })
 
+  describe('flavor type validation', () => {
+    const column = (type: string, length?: number) => `database:
+  schemas:
+    s:
+      tables:
+        t:
+          columns:
+            a:
+              type: ${type}${length != null ? `\n              length: ${length}` : ''}
+`
+
+    it('skips type validation when no flavor is given', () => {
+      const { errors } = parse(column('made_up_type'))
+      expect(errors).toEqual([])
+    })
+
+    it('reports an unknown type for the flavor', () => {
+      const { errors } = parse(column('jsonb'), 'mysql')
+      expect(errors.some((e) => e.path === 'database.schemas.s.tables.t.columns.a.type')).toBe(true)
+      expect(errors.some((e) => e.message.includes('unknown MySQL type'))).toBe(true)
+    })
+
+    it('errors when a required-length type has no length (MySQL varchar)', () => {
+      const { errors } = parse(column('varchar'), 'mysql')
+      expect(errors.some((e) => e.message.includes('requires a length'))).toBe(true)
+    })
+
+    it('errors when a forbidden-length type has a length (Postgres integer)', () => {
+      const { errors } = parse(column('integer', 11), 'postgres')
+      expect(errors.some((e) => e.message.includes('does not take a length'))).toBe(true)
+    })
+
+    it('accepts valid flavor types', () => {
+      expect(parse(column('varchar', 25), 'mysql').errors).toEqual([])
+      expect(parse(column('integer'), 'postgres').errors).toEqual([])
+    })
+
+    it('still validates the rest of the schema with a flavor set', () => {
+      const { db, errors } = parse(SEED_YAML, 'postgres')
+      expect(errors).toEqual([])
+      expect(db.schemas[0].tables.map((t) => t.name)).toEqual(['user', 'address'])
+    })
+  })
+
   it('reports a foreign key with an unknown source column', () => {
     const { errors } = parse(`database:
   schemas:
