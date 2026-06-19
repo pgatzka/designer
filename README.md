@@ -190,8 +190,8 @@ Each design has a **flavor** — **PostgreSQL**, **MySQL** or **SQL Server** —
 the **New design** dialog and **fixed for the life of the design** (it is design
 metadata, not part of the editable YAML; the header shows it read-only). The flavor
 drives **strict column-type validation**: a column whose `type` is not in the flavor's
-catalog, or whose `length` violates the type's rule (e.g. MySQL `varchar` *requires* a
-length, PostgreSQL `integer` *forbids* one), is a parse error in the error bar and is
+catalog, or whose `length` violates the type's rule (e.g. MySQL `varchar` _requires_ a
+length, PostgreSQL `integer` _forbids_ one), is a parse error in the error bar and is
 **not saved**. The catalog lives in `frontend/src/schema/flavors.ts`.
 
 Frontend (`frontend/src/`):
