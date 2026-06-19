@@ -19,6 +19,49 @@ describe('serialize', () => {
     expect(out.startsWith('database:')).toBe(true)
   })
 
+  it('emits scalar source-column/target-column for single-column FKs', () => {
+    const { db } = parse(SEED_YAML)
+    const out = serialize(db)
+    expect(out).toMatch(/source-column: user_id/)
+    expect(out).toMatch(/target-column: id/)
+    expect(out).not.toContain('source-columns')
+    expect(out).not.toContain('target-columns')
+  })
+
+  it('emits plural list keys for composite FKs', () => {
+    const { db } = parse(`database:
+  schemas:
+    s:
+      tables:
+        a:
+          columns:
+            x:
+              type: integer
+            y:
+              type: integer
+        b:
+          columns:
+            ax:
+              type: integer
+            ay:
+              type: integer
+          foreign-keys:
+            fk:
+              source-columns:
+                - ax
+                - ay
+              table: a
+              target-columns:
+                - x
+                - y
+`)
+    const out = serialize(db)
+    expect(out).toContain('source-columns:')
+    expect(out).toContain('target-columns:')
+    expect(out).not.toMatch(/source-column:/)
+    expect(parse(out).db).toEqual(db)
+  })
+
   it('omits nullable when true and emits it when false', () => {
     const { db } = parse(`database:
   schemas:

@@ -232,7 +232,7 @@ export default function App() {
           <Editor value={text} onChange={setText} />
         </section>
         <section className="app__canvas">
-          <Canvas db={db} />
+          <Canvas db={db} onChange={(next) => setText(serialize(next))} />
           <ErrorBar errors={errors} />
         </section>
       </div>

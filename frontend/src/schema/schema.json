@@ -71,18 +71,15 @@
     },
     "foreignKey": {
       "type": "object",
-      "required": ["source-column", "table", "target-columns"],
+      "required": ["table"],
       "additionalProperties": false,
       "properties": {
-        "source-column": { "$ref": "#/definitions/stringOrList" },
-        "source-columns": { "$ref": "#/definitions/stringOrList" },
+        "source-column": { "type": "string" },
+        "source-columns": { "type": "array", "items": { "type": "string" } },
         "table": { "type": "string" },
-        "target-column": { "$ref": "#/definitions/stringOrList" },
-        "target-columns": { "$ref": "#/definitions/stringOrList" }
+        "target-column": { "type": "string" },
+        "target-columns": { "type": "array", "items": { "type": "string" } }
       }
-    },
-    "stringOrList": {
-      "oneOf": [{ "type": "string" }, { "type": "array", "items": { "type": "string" } }]
     }
   }
 }

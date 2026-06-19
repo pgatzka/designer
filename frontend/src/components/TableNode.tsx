@@ -1,7 +1,9 @@
+import { useContext } from 'react'
 import { Handle, Position, type NodeProps } from '@xyflow/react'
 import type { TableFlowNode } from '../graph/toReactFlow'
 import { sourceHandleId, targetHandleId, type ColumnBadges } from '../graph/toReactFlow'
 import { HEADER_HEIGHT, NODE_WIDTH, ROW_HEIGHT } from '../graph/dimensions'
+import { CanvasActionsContext } from './canvasActions'
 
 function badgeList(b: ColumnBadges): string[] {
   const out: string[] = []
@@ -14,6 +16,7 @@ function badgeList(b: ColumnBadges): string[] {
 
 export function TableNode({ data }: NodeProps<TableFlowNode>) {
   const { table, badges } = data
+  const actions = useContext(CanvasActionsContext)
 
   return (
     <div className="table-node" style={{ width: NODE_WIDTH }}>
@@ -26,7 +29,16 @@ export function TableNode({ data }: NodeProps<TableFlowNode>) {
           const b = badges[col.name] ?? { pk: false, uq: false, ix: false, fk: false }
           const tags = badgeList(b)
           return (
-            <div key={col.name} className="table-node__row" style={{ height: ROW_HEIGHT }}>
+            <div
+              key={col.name}
+              className="table-node__row"
+              style={{ height: ROW_HEIGHT }}
+              onContextMenu={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                actions?.openColumnMenu(table.schema, table.name, col.name, e.clientX, e.clientY)
+              }}
+            >
               <Handle
                 type="target"
                 position={Position.Left}

@@ -54,5 +54,5 @@ export const SEED_YAML = `database:
             fk_address__user_id:
               source-column: user_id
               table: user
-              target-columns: id
+              target-column: id
 `

@@ -34,11 +34,14 @@ export function serialize(db: Database): string {
       if (table.foreignKeys.length > 0) {
         const fks: Record<string, unknown> = {}
         for (const fk of table.foreignKeys) {
-          fks[fk.name] = {
-            'source-columns': fk.sourceColumns,
-            table: fk.targetTable,
-            'target-columns': fk.targetColumns,
-          }
+          // Singular scalar key for a single column, plural list key for many.
+          const entry: Record<string, unknown> = {}
+          if (fk.sourceColumns.length === 1) entry['source-column'] = fk.sourceColumns[0]
+          else entry['source-columns'] = fk.sourceColumns
+          entry.table = fk.targetTable
+          if (fk.targetColumns.length === 1) entry['target-column'] = fk.targetColumns[0]
+          else entry['target-columns'] = fk.targetColumns
+          fks[fk.name] = entry
         }
         t['foreign-keys'] = fks
       }

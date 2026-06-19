@@ -155,14 +155,21 @@ database:
             fk_address__user_id:
               source-column: user_id
               table: user
-              target-columns: id
+              target-column: id
 ```
 
 - **columns** — `type` (required), `length` (optional), `nullable` (default `true`).
 - **constraints** — each has `type` (`primary-key` | `unique` | `index`) and a
   `columns` list. `indices` is accepted as an alias.
-- **foreign-keys** — `source-column`, `table` (target), `target-columns`. The
-  column fields accept a single value or a list. Each FK draws a relationship edge.
+- **foreign-keys** — `table` (target) plus the columns. Use the **singular**
+  `source-column` / `target-column` for a single column (a scalar value), or the
+  **plural** `source-columns` / `target-columns` for a list (composite keys). Each FK
+  draws a relationship edge.
+
+Tables, columns, constraints and foreign keys can also be edited from the canvas —
+**right-click** a table (Add ▸ Column / Primary key / Unique / Index / Foreign key,
+Rename, Delete), a **column** (Edit / Delete / Move), or the empty canvas (Add table,
+Manage schemas).
 
 Columns are annotated in the diagram with **PK / FK / UQ / IX** badges and a
 not-null marker. Validation errors (bad YAML, unknown columns/tables, etc.) appear

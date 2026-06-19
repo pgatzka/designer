@@ -145,7 +145,7 @@ describe('parse', () => {
             fk:
               source-column: ref_id
               table: nope
-              target-columns: id
+              target-column: id
 `)
     expect(errors.some((e) => e.message.includes('unknown target table "nope"'))).toBe(true)
   })
@@ -167,7 +167,7 @@ describe('parse', () => {
             fk:
               source-column: a_id
               table: a
-              target-columns: missing
+              target-column: missing
 `)
     expect(errors.some((e) => e.message.includes('unknown target column "a.missing"'))).toBe(true)
   })
@@ -301,7 +301,7 @@ describe('parse', () => {
     expect(noTable.errors.some((e) => e.message.includes('missing a target "table"'))).toBe(true)
   })
 
-  it('accepts the plural source-columns / singular target-column aliases', () => {
+  it('accepts source-columns (list) and target-column (scalar)', () => {
     const { db, errors } = parse(`database:
   schemas:
     s:
@@ -328,6 +328,60 @@ describe('parse', () => {
     })
   })
 
+  it('enforces singular FK keys as scalars and plural as lists', () => {
+    const base = (fk: string) => `database:
+  schemas:
+    s:
+      tables:
+        a:
+          columns:
+            id:
+              type: integer
+        b:
+          columns:
+            a_id:
+              type: integer
+          foreign-keys:
+            fk:
+${fk}
+`
+    // singular key given a list -> error
+    const singularList = parse(
+      base(
+        '              source-column:\n                - a_id\n              table: a\n              target-column: id',
+      ),
+    )
+    expect(
+      singularList.errors.some((e) =>
+        e.message.includes('"source-column" must be a single column'),
+      ),
+    ).toBe(true)
+
+    // plural key given a scalar -> error
+    const pluralScalar = parse(
+      base(
+        '              source-columns: a_id\n              table: a\n              target-column: id',
+      ),
+    )
+    expect(
+      pluralScalar.errors.some((e) => e.message.includes('"source-columns" must be a list')),
+    ).toBe(true)
+
+    // both keys of a pair -> error
+    const both = parse(
+      base(
+        '              source-column: a_id\n              source-columns:\n                - a_id\n              table: a\n              target-column: id',
+      ),
+    )
+    expect(both.errors.some((e) => e.message.includes('not both'))).toBe(true)
+
+    // neither key -> error
+    const neither = parse(base('              table: a\n              target-column: id'))
+    expect(
+      neither.errors.some((e) => e.message.includes('missing "source-column" or "source-columns"')),
+    ).toBe(true)
+  })
+
   it('reports a foreign key with an unknown source column', () => {
     const { errors } = parse(`database:
   schemas:
@@ -345,7 +399,7 @@ describe('parse', () => {
             fk:
               source-column: ghost
               table: a
-              target-columns: id
+              target-column: id
 `)
     expect(errors.some((e) => e.message === 'unknown source column "ghost"')).toBe(true)
   })

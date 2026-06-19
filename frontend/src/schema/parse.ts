@@ -178,6 +178,51 @@ function parseConstraints(
   return constraints
 }
 
+/**
+ * Resolve a foreign-key column reference: the singular key (`source-column` /
+ * `target-column`) is a single scalar; the plural key (`source-columns` /
+ * `target-columns`) is a list. Exactly one of the pair must be present.
+ */
+function parseColumnRef(
+  node: Record<string, unknown>,
+  path: string,
+  singularKey: string,
+  pluralKey: string,
+  errors: ParseError[],
+): string[] {
+  const hasSingular = node[singularKey] != null
+  const hasPlural = node[pluralKey] != null
+
+  if (hasSingular && hasPlural) {
+    errors.push({ path, message: `use either "${singularKey}" or "${pluralKey}", not both` })
+    return []
+  }
+  if (hasSingular) {
+    const value = node[singularKey]
+    if (typeof value !== 'string') {
+      errors.push({
+        path: `${path}.${singularKey}`,
+        message: `"${singularKey}" must be a single column name (use "${pluralKey}" for a list)`,
+      })
+      return []
+    }
+    return [value]
+  }
+  if (hasPlural) {
+    const value = node[pluralKey]
+    if (!Array.isArray(value)) {
+      errors.push({
+        path: `${path}.${pluralKey}`,
+        message: `"${pluralKey}" must be a list of column names`,
+      })
+      return []
+    }
+    return value.map((v) => String(v)).filter((s) => s.length > 0)
+  }
+  errors.push({ path, message: `foreign key is missing "${singularKey}" or "${pluralKey}"` })
+  return []
+}
+
 function parseForeignKeys(fkNode: unknown, tablePath: string, errors: ParseError[]): ForeignKey[] {
   if (fkNode == null) return []
   if (!isRecord(fkNode)) {
@@ -199,9 +244,9 @@ function parseForeignKeys(fkNode: unknown, tablePath: string, errors: ParseError
     }
     fks.push({
       name,
-      sourceColumns: toStringList(node['source-column'] ?? node['source-columns']),
+      sourceColumns: parseColumnRef(node, path, 'source-column', 'source-columns', errors),
       targetTable: node.table,
-      targetColumns: toStringList(node['target-columns'] ?? node['target-column']),
+      targetColumns: parseColumnRef(node, path, 'target-column', 'target-columns', errors),
     })
   }
   return fks
