@@ -54,3 +54,18 @@ export const updateDesignSchema = z
   .refine((v) => v.name !== undefined || v.database !== undefined, {
     message: 'Nothing to update',
   })
+
+export const connectionSchema = z.object({
+  host: z.string().trim().min(1, 'Host is required'),
+  port: z.number().int().positive(),
+  database: z.string().trim().min(1, 'Database is required'),
+  user: z.string().trim().min(1, 'User is required'),
+  password: z.string(),
+  ssl: z.boolean().optional(),
+})
+
+export const importDesignSchema = z.object({
+  name: designNameSchema,
+  flavor: flavorSchema,
+  connection: connectionSchema,
+})

@@ -4,15 +4,18 @@ import { Editor } from './components/Editor'
 import { ErrorBar } from './components/ErrorBar'
 import { Explorer } from './components/Explorer'
 import { NewDesignDialog } from './components/NewDesignDialog'
+import { ImportDialog } from './components/ImportDialog'
 import { useAuth } from './auth/AuthContext'
 import {
   createDesign,
   deleteDesign,
   getDesign,
+  importDesign,
   listDesigns,
   updateDesign,
   type Design,
   type DesignSummary,
+  type ImportConnection,
 } from './designs/api'
 import { parse } from './schema/parse'
 import { serialize } from './schema/serialize'
@@ -57,6 +60,7 @@ export default function App() {
   const [errors, setErrors] = useState<ParseError[]>([])
   const [db, setDb] = useState<Database>(EMPTY_DB)
   const [newOpen, setNewOpen] = useState(false)
+  const [importOpen, setImportOpen] = useState(false)
 
   const parseTimer = useRef<number | undefined>(undefined)
   const saveTimer = useRef<number | undefined>(undefined)
@@ -176,6 +180,21 @@ export default function App() {
     }
   }
 
+  // Import a schema from a live SQL connection into a new design. Errors propagate
+  // back to the dialog (which stays open) so the user can correct and retry.
+  async function handleImport(name: string, flavor: FlavorId, connection: ImportConnection) {
+    setBusy(true)
+    try {
+      const created = await importDesign(name, flavor, connection)
+      setDesigns((prev) => [summary(created), ...prev])
+      applyDesign(created)
+      setSaveStatus('idle')
+      setImportOpen(false)
+    } finally {
+      setBusy(false)
+    }
+  }
+
   async function handleDelete(id: string) {
     if (!window.confirm('Delete this design? This cannot be undone.')) return
     setBusy(true)
@@ -246,6 +265,7 @@ export default function App() {
           busy={busy}
           onSelect={handleSelect}
           onNew={() => setNewOpen(true)}
+          onImport={() => setImportOpen(true)}
           onDelete={handleDelete}
         />
         <section className="app__editor">
@@ -257,6 +277,7 @@ export default function App() {
         </section>
       </div>
       {newOpen && <NewDesignDialog onCancel={() => setNewOpen(false)} onSubmit={handleCreate} />}
+      {importOpen && <ImportDialog onCancel={() => setImportOpen(false)} onImport={handleImport} />}
     </div>
   )
 }

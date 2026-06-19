@@ -256,7 +256,13 @@ body,
   color: var(--muted);
 }
 
-.explorer__new {
+.explorer__actions {
+  display: flex;
+  gap: 6px;
+}
+
+.explorer__new,
+.explorer__import {
   background: var(--panel-2);
   color: var(--text);
   border: 1px solid var(--border);
@@ -266,9 +272,16 @@ body,
   cursor: pointer;
 }
 
-.explorer__new:hover:not(:disabled) {
+.explorer__new:hover:not(:disabled),
+.explorer__import:hover:not(:disabled) {
   border-color: var(--accent);
   color: #fff;
+}
+
+.explorer__new:disabled,
+.explorer__import:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 
 .explorer__list {
@@ -641,6 +654,19 @@ body,
   border: none;
   margin: 0;
   padding: 0;
+}
+
+.field-row {
+  display: flex;
+  gap: 10px;
+}
+
+.field-row .field--grow {
+  flex: 1;
+}
+
+.field-row .field--port {
+  width: 90px;
 }
 
 .field > span,

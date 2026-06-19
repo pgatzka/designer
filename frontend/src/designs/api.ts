@@ -43,6 +43,30 @@ export async function createDesign(
   return (await readJson(res)).design as Design
 }
 
+/** Connection details for importing a schema from a live database. */
+export interface ImportConnection {
+  host: string
+  port: number
+  database: string
+  user: string
+  password: string
+  ssl?: boolean
+}
+
+export async function importDesign(
+  name: string,
+  flavor: FlavorId,
+  connection: ImportConnection,
+): Promise<Design> {
+  const res = await fetch('/api/designs/import', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ name, flavor, connection }),
+  })
+  return (await readJson(res)).design as Design
+}
+
 export async function updateDesign(
   id: string,
   patch: { name?: string; database?: Database },

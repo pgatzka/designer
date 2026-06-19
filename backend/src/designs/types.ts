@@ -63,3 +63,59 @@ export interface DesignRepository {
   ): Promise<Design | null>
   remove(userId: string, id: string): Promise<boolean>
 }
+
+// ---- Schema import (live SQL connection) -----------------------------------
+
+/** Connection details for an import; used transiently and never persisted. */
+export interface ConnectionConfig {
+  flavor: FlavorId
+  host: string
+  port: number
+  database: string
+  user: string
+  password: string
+  ssl?: boolean
+}
+
+/**
+ * Flavor-agnostic introspection result. Inspectors fill these flat lists from a
+ * source database's catalog; {@link Database} is then assembled from them.
+ */
+export interface RawColumn {
+  schema: string
+  table: string
+  name: string
+  dataType: string
+  charMaxLength?: number
+  nullable: boolean
+  position: number
+}
+
+export interface RawConstraint {
+  schema: string
+  table: string
+  name: string
+  type: ConstraintType
+  columns: string[]
+}
+
+export interface RawForeignKey {
+  schema: string
+  table: string
+  name: string
+  columns: string[]
+  targetSchema: string
+  targetTable: string
+  targetColumns: string[]
+}
+
+export interface RawSchema {
+  columns: RawColumn[]
+  constraints: RawConstraint[]
+  foreignKeys: RawForeignKey[]
+}
+
+/** Connects to a source database and introspects its schema (injected for tests). */
+export interface SchemaInspector {
+  inspect(conn: ConnectionConfig): Promise<RawSchema>
+}

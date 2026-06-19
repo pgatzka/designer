@@ -194,6 +194,23 @@ catalog, or whose `length` violates the type's rule (e.g. MySQL `varchar` _requi
 length, PostgreSQL `integer` _forbids_ one), is a parse error in the error bar and is
 **not saved**. The catalog lives in `frontend/src/schema/flavors.ts`.
 
+### Import from an existing database
+
+The explorer's **Import** button creates a new design by introspecting a **live SQL
+connection**. Pick the flavor (PostgreSQL / MySQL / SQL Server) and enter host, port,
+database, user, password and an optional SSL toggle. The backend connects, reads the
+catalog, and builds the normalized model — tables, columns (with native types
+**normalized** to the flavor catalog, e.g. Postgres `character varying`→`varchar(n)`,
+`timestamp without time zone`→`timestamp`, SQL Server `nvarchar(max)`→`text`), primary
+keys, unique constraints, secondary indexes and foreign keys. It imports **all user
+schemas** (system schemas are skipped); for **MySQL** the connected database _is_ the
+schema. The new design's flavor matches the source engine (and is then immutable).
+
+Connection credentials are used **only** to read the schema for that one request and are
+**never stored**. Because the server opens an outbound connection to the host you
+provide, importing is intended for this **login-gated, self-hosted** app; treat it like
+any feature that can reach your internal network.
+
 Frontend (`frontend/src/`):
 
 - `schema/parse.ts` — YAML → typed `Database`; `schema/serialize.ts` — `Database` → YAML.
@@ -207,8 +224,11 @@ Backend (`backend/src/`):
 
 - `auth/` — `validation` (zod), `password` (argon2), `service` (register/login over a
   `UserRepository`), `routes` (`/api/auth/register|login|logout|me`, JWT cookie).
-- `designs/` — `schema` (zod), `routes` (`/api/designs` CRUD over a `DesignRepository`).
+- `designs/` — `schema` (zod), `routes` (`/api/designs` CRUD + `/api/designs/import` over
+  a `DesignRepository`), `introspect` (pure native-type→catalog mapping + `Database`
+  assembly from introspection rows).
 - `db/` — `pool`, `migrate` (idempotent tables), `userRepository`, `designRepository`
-  (transactional, normalized read/write).
+  (transactional, normalized read/write), `introspect/` (per-flavor `pg`/`mysql`/
+  `sqlserver` schema inspectors behind a `SchemaInspector`).
 - `app.ts` — Fastify factory (DI'd repositories, so logic is tested without a DB);
   `static.ts` serves the frontend in production; `index.ts` boots it all.

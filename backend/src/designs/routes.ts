@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
-import { createDesignSchema, updateDesignSchema } from './schema'
-import type { DesignRepository } from './types'
+import { createDesignSchema, importDesignSchema, updateDesignSchema } from './schema'
+import { assembleDatabase } from './introspect'
+import type { DesignRepository, SchemaInspector } from './types'
 
 function userId(request: FastifyRequest): string {
   return (request.user as { sub: string }).sub
@@ -15,7 +16,11 @@ async function requireAuth(request: FastifyRequest, reply: FastifyReply): Promis
   }
 }
 
-export function registerDesignRoutes(app: FastifyInstance, designs: DesignRepository): void {
+export function registerDesignRoutes(
+  app: FastifyInstance,
+  designs: DesignRepository,
+  inspector: SchemaInspector,
+): void {
   app.get('/api/designs', { preHandler: requireAuth }, async (request) => {
     return { designs: await designs.listByUser(userId(request)) }
   })
@@ -31,6 +36,25 @@ export function registerDesignRoutes(app: FastifyInstance, designs: DesignReposi
       parsed.data.flavor,
       parsed.data.database,
     )
+    return reply.code(201).send({ design })
+  })
+
+  app.post('/api/designs/import', { preHandler: requireAuth }, async (request, reply) => {
+    const parsed = importDesignSchema.safeParse(request.body)
+    if (!parsed.success) {
+      return reply.code(400).send({ error: parsed.error.issues[0]?.message ?? 'Invalid request' })
+    }
+    const { name, flavor, connection } = parsed.data
+
+    let database
+    try {
+      const raw = await inspector.inspect({ flavor, ...connection })
+      database = assembleDatabase(flavor, raw)
+    } catch (err) {
+      return reply.code(400).send({ error: `Import failed: ${(err as Error).message}` })
+    }
+
+    const design = await designs.create(userId(request), name, flavor, database)
     return reply.code(201).send({ design })
   })
 
